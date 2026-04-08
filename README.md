@@ -61,15 +61,25 @@ Simply drag and drop the `mempalace-rs.skill` file into your Windsurf chat or pr
 ## Performance
 
 <!-- BENCH_TABLE_START -->
-| Operation                | Throughput      | Latency |
-|--------------------------|-----------------|---------|
-| AAAK Compression (V:3.2) | ~18500 ops/sec  | 54 µs   |
-| Entity Detection         | ~244545 ops/sec | 4 µs    |
-| Token Counting           | ~3717947 ops/sec| 269 ns  |
-| Compression Stats        | ~1157373 ops/sec| 864 ns  |
+| Operation          | Throughput        | Latency |
+|--------------------|-------------------|---------|
+| AAAK Compression   | ~36220 ops/sec    | 28 µs   |
+| Entity Detection   | ~484458 ops/sec   | 2 µs    |
+| Token Counting     | ~6542188 ops/sec  | 153 ns  |
+| Compression Stats  | ~2358076 ops/sec  | 424 ns  |
 <!-- BENCH_TABLE_END -->
 
-Benchmarked on Apple Silicon M4, 16GB RAM
+### AAAK v3.2 Evolution Metrics
+*Measured against the internal LongMemEval-CI benchmark suite*
+
+<!-- ACCURACY_TABLE_START -->
+| Mode | Recall@5 | Recall@10 | Latency/Query |
+|------|----------|-----------|---------------|
+| RAW  | 100.0%   | 100.0%    | 75.5ms        |
+| AAAK | 100.0%   | 100.0%    | 209.0ms       |
+<!-- ACCURACY_TABLE_END -->
+
+Benchmarked on Apple Silicon M4, 16GB RAM. Performance may vary by hardware.
 
 **Binary Size**: 7.9 MB (release build)
 **Cold Start**: ~300 ms

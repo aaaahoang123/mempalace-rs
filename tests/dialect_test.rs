@@ -72,7 +72,11 @@ fn test_compress_with_metadata() {
     let compressed = dialect.compress("This is a test of metadata inclusion.", Some(metadata));
     assert!(compressed.contains("technical|rust|2024-01-01|test"));
     // Phase 3: overlay must also be present
-    assert!(compressed.contains("JSON:"), "MetadataOverlay must be emitted: {}", compressed);
+    assert!(
+        compressed.contains("JSON:"),
+        "MetadataOverlay must be emitted: {}",
+        compressed
+    );
 }
 
 #[test]
@@ -174,7 +178,11 @@ fn test_density_compact() {
         .split('+')
         .filter(|s| !s.is_empty() && *s != "???")
         .collect();
-    assert!(entities.len() <= 1, "density=1 → max 1 entity, got {:?}", entities);
+    assert!(
+        entities.len() <= 1,
+        "density=1 → max 1 entity, got {:?}",
+        entities
+    );
 }
 
 #[test]
@@ -192,7 +200,11 @@ fn test_density_verbose() {
         .filter(|s| !s.is_empty() && *s != "???")
         .collect();
     // At density 10 we allow up to 5
-    assert!(entities.len() <= 5, "density=10 → max 5 entities, got {:?}", entities);
+    assert!(
+        entities.len() <= 5,
+        "density=10 → max 5 entities, got {:?}",
+        entities
+    );
 }
 
 // ── Phase 3: MetadataOverlay ──────────────────────────────────────────────────
@@ -200,7 +212,10 @@ fn test_density_verbose() {
 #[test]
 fn test_metadata_overlay_to_line_roundtrip() {
     let mut extra = HashMap::new();
-    extra.insert("sprint".to_string(), "aaak-v3.2".to_string());
+    extra.insert(
+        "sprint".to_string(),
+        serde_json::Value::String("aaak-v3.2".to_string()),
+    );
     let overlay = MetadataOverlay {
         version: Some("V:3.2".to_string()),
         wing: Some("technical".to_string()),
@@ -284,7 +299,10 @@ fn test_atomize_basic() {
                 Bob reviewed and approved the change. \
                 Deployment was on Monday.";
     let props = dialect.atomize(text, 3);
-    assert!(!props.is_empty(), "atomize must return at least one proposition");
+    assert!(
+        !props.is_empty(),
+        "atomize must return at least one proposition"
+    );
     assert!(props.len() <= 3, "must respect max_propositions");
     for p in &props {
         assert!(!p.trim().is_empty(), "each proposition must be non-empty");
@@ -296,8 +314,15 @@ fn test_compress_propositions_format() {
     let dialect = Dialect::default();
     let text = "Alice chose Rust for performance. Bob picked tokio for async. SQLite stores data.";
     let out = dialect.compress_propositions(text, None, 3, 5);
-    assert!(out.starts_with("V:3.2"), "proposition output must start with version header");
-    assert!(out.contains("P0:"), "must have at least P0: proposition line: {}", out);
+    assert!(
+        out.starts_with("V:3.2"),
+        "proposition output must start with version header"
+    );
+    assert!(
+        out.contains("P0:"),
+        "must have at least P0: proposition line: {}",
+        out
+    );
 }
 
 // ── Phase 7: Delta Encoding ───────────────────────────────────────────────────
@@ -317,7 +342,10 @@ fn test_compress_delta_small_change() {
 #[test]
 fn test_compress_delta_large_change() {
     let dialect = Dialect::default();
-    let old = dialect.compress("Rust ownership prevents null pointers at compile time.", None);
+    let old = dialect.compress(
+        "Rust ownership prevents null pointers at compile time.",
+        None,
+    );
     let result = dialect.compress_delta(
         &old,
         "Quantum computing uses superposition and entanglement for parallel computation.",
@@ -353,5 +381,9 @@ fn test_faithfulness_nonzero_for_rich_text() {
         "Rust enables memory ownership borrowing lifetime enforcement.",
         None,
     );
-    assert!(score > 0.0, "faithfulness should be > 0 for topic-rich text, got {}", score);
+    assert!(
+        score > 0.0,
+        "faithfulness should be > 0 for topic-rich text, got {}",
+        score
+    );
 }

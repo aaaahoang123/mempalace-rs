@@ -15,10 +15,10 @@ cargo bench
 <!-- BENCH_TABLE_START -->
 | Operation          | Throughput        | Latency |
 |--------------------|-------------------|---------|
-| AAAK Compression   | ~20946 ops/sec    | 48 µs   |
-| Entity Detection   | ~244545 ops/sec   | 4 µs    |
-| Token Counting     | ~3717947 ops/sec  | 269 ns  |
-| Compression Stats  | ~1157373 ops/sec  | 864 ns  |
+| AAAK Compression   | ~36220 ops/sec    | 28 µs   |
+| Entity Detection   | ~484458 ops/sec   | 2 µs    |
+| Token Counting     | ~6542188 ops/sec  | 153 ns  |
+| Compression Stats  | ~2358076 ops/sec  | 424 ns  |
 <!-- BENCH_TABLE_END -->
 
 **Binary Size**: 7.9 MB (release build)  

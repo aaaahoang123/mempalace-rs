@@ -154,7 +154,7 @@ lazy_static::lazy_static! {
         Regex::new(r"^\s*\w+\.\w+\(").unwrap(),
         Regex::new(r"^\s*\w+ = \w+\.\w+").unwrap(),
     ];
-    
+
     // DECISION Matrix Extraction Patterns
     pub static ref DECISION_WHO: Regex = Regex::new(r"(?i)\b(who|by):\s*([A-Z][a-zA-Z]+)\b").unwrap();
     pub static ref DECISION_WHAT: Regex = Regex::new(r"(?i)\b(what|decision):\s*(.+?)(?:\.|$|;)").unwrap();
@@ -264,20 +264,37 @@ pub fn extract_structured_memories(text: &str) -> Vec<StructuredMemory> {
 
         let sentiment_val = get_sentiment_score(&prose);
         let topic = extract_topic(&prose);
-        
+
         let mut matrix = HashMap::new();
         if max_type == MemoryType::Decision {
             if let Some(caps) = DECISION_WHO.captures(&prose) {
-                matrix.insert("WHO".to_string(), caps.get(2).unwrap().as_str().trim().to_string());
+                matrix.insert(
+                    "WHO".to_string(),
+                    caps.get(2).unwrap().as_str().trim().to_string(),
+                );
             }
             if let Some(caps) = DECISION_WHAT.captures(&prose) {
-                matrix.insert("WHAT".to_string(), caps.get(2).unwrap().as_str().trim().to_string());
+                matrix.insert(
+                    "WHAT".to_string(),
+                    caps.get(2).unwrap().as_str().trim().to_string(),
+                );
             }
             if let Some(caps) = DECISION_WHY.captures(&prose) {
-                matrix.insert("WHY".to_string(), caps.get(2).unwrap().as_str().trim().to_string());
+                matrix.insert(
+                    "WHY".to_string(),
+                    caps.get(2).unwrap().as_str().trim().to_string(),
+                );
             }
             if let Some(caps) = DECISION_CONFIDENCE.captures(&prose) {
-                matrix.insert("CONFIDENCE".to_string(), caps.get(2).unwrap().as_str().trim().to_string().to_uppercase());
+                matrix.insert(
+                    "CONFIDENCE".to_string(),
+                    caps.get(2)
+                        .unwrap()
+                        .as_str()
+                        .trim()
+                        .to_string()
+                        .to_uppercase(),
+                );
             }
         }
 

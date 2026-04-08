@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 
-
 pub const DEFAULT_PALACE_PATH: &str = "~/.mempalace/palace";
 pub const DEFAULT_COLLECTION_NAME: &str = "mempalace_drawers";
 
@@ -244,8 +243,9 @@ impl MempalaceConfig {
         }
 
         match fs::read_to_string(&path) {
-            Ok(content) => serde_json::from_str::<HashMap<String, String>>(&content)
-                .unwrap_or_default(),
+            Ok(content) => {
+                serde_json::from_str::<HashMap<String, String>>(&content).unwrap_or_default()
+            }
             Err(_) => HashMap::new(),
         }
     }

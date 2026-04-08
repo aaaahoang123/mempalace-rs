@@ -220,7 +220,10 @@ impl Layer1 {
                 let mut m = serde_json::Map::new();
                 m.insert(
                     "importance".to_string(),
-                    serde_json::Value::Number(serde_json::Number::from_f64(r.importance as f64).unwrap_or_else(|| serde_json::Number::from(0))),
+                    serde_json::Value::Number(
+                        serde_json::Number::from_f64(r.importance as f64)
+                            .unwrap_or_else(|| serde_json::Number::from(0)),
+                    ),
                 );
                 m.insert(
                     "wing".to_string(),
@@ -348,7 +351,10 @@ impl Layer2 {
                 let mut m = serde_json::Map::new();
                 m.insert(
                     "importance".to_string(),
-                    serde_json::Value::Number(serde_json::Number::from_f64(r.importance as f64).unwrap_or_else(|| serde_json::Number::from(0))),
+                    serde_json::Value::Number(
+                        serde_json::Number::from_f64(r.importance as f64)
+                            .unwrap_or_else(|| serde_json::Number::from(0)),
+                    ),
                 );
                 m.insert(
                     "room".to_string(),
@@ -478,7 +484,10 @@ impl Layer3 {
                 let mut m = serde_json::Map::new();
                 m.insert(
                     "importance".to_string(),
-                    serde_json::Value::Number(serde_json::Number::from_f64(r.importance as f64).unwrap_or_else(|| serde_json::Number::from(0))),
+                    serde_json::Value::Number(
+                        serde_json::Number::from_f64(r.importance as f64)
+                            .unwrap_or_else(|| serde_json::Number::from(0)),
+                    ),
                 );
                 m.insert(
                     "wing".to_string(),
@@ -854,7 +863,7 @@ mod tests {
 
         let res = Layer2::format_retrieval(None, None, &docs, &metas);
         assert!(res.contains("## L2 — ON-DEMAND (3 drawers)"));
-        assert!(res.contains("[hall] Snippet 1"));
+        assert!(res.contains("[hall] WT:6| Snippet 1"));
         assert!(res.contains("file1.txt"));
         assert!(res.contains("[?]")); // None doc
         assert!(res.contains(&"A".repeat(297))); // Truncated long doc
@@ -892,10 +901,10 @@ mod tests {
         let res = Layer3::format_search("test query", &docs, &metas, &dists);
         assert!(res.contains("## L3 — SEARCH RESULTS for \"test query\""));
         assert!(res.contains("[1] w1/r1"));
-        assert!(res.contains("sim=0.8"));
+        assert!(res.contains("sim=0.800, wt=6")); // Default importance 3.0 -> wt 6
         assert!(res.contains("Found result 1"));
         assert!(res.contains("src: f1.txt"));
-        assert!(res.contains("[2] ?/? (sim=0.100)"));
+        assert!(res.contains("[2] ?/? (sim=0.100, wt=6)"));
         assert!(res.contains(&"B".repeat(297)));
     }
 

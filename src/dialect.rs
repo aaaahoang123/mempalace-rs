@@ -256,8 +256,8 @@ impl Dialect {
         }
         // Auto-code: first 3 chars uppercase
         if name.len() >= 3 {
-        let code = name.chars().take(3).collect::<String>().to_uppercase();
-        Some(code)
+            let code = name.chars().take(3).collect::<String>().to_uppercase();
+            Some(code)
         } else {
             Some(name.to_uppercase())
         }
@@ -270,18 +270,14 @@ impl Dialect {
                 .custom_emotions
                 .get(e.as_str())
                 .cloned()
-                .or_else(|| {
-                    EMOTION_CODES
-                        .get(e.as_str())
-                        .map(|&s| s.to_string())
-                })
+                .or_else(|| EMOTION_CODES.get(e.as_str()).map(|&s| s.to_string()))
                 .unwrap_or_else(|| {
                     if e.len() >= 4 {
-                    if e.len() > 4 {
-                        e.chars().take(4).collect::<String>()
-                    } else {
-                        e.to_string()
-                    }
+                        if e.len() > 4 {
+                            e.chars().take(4).collect::<String>()
+                        } else {
+                            e.to_string()
+                        }
                     } else {
                         e.clone()
                     }
@@ -537,25 +533,41 @@ impl Dialect {
         let emotion_str = emotions.join("+");
 
         let mut flags = self._detect_flags(text);
-        
+
         // Write Discipline: Grammar Matrix Validation
         let structured_memories = crate::extractor::extract_structured_memories(text);
         let mut is_compliant_decision = false;
-        
+
         if flags.iter().any(|f| f == "DECISION") {
-            if let Some(decision_mem) = structured_memories.iter().find(|m| m.memory_type == crate::models::MemoryType::Decision) {
+            if let Some(decision_mem) = structured_memories
+                .iter()
+                .find(|m| m.memory_type == crate::models::MemoryType::Decision)
+            {
                 let m = &decision_mem.matrix;
-                if m.contains_key("WHO") && m.contains_key("WHAT") && m.contains_key("WHY") && m.contains_key("CONFIDENCE") {
+                if m.contains_key("WHO")
+                    && m.contains_key("WHAT")
+                    && m.contains_key("WHY")
+                    && m.contains_key("CONFIDENCE")
+                {
                     is_compliant_decision = true;
                     // Tag with registry version
-                    flags = flags.into_iter().map(|f| if f == "DECISION" { "DECISION[v1]".to_string() } else { f }).collect();
+                    flags = flags
+                        .into_iter()
+                        .map(|f| {
+                            if f == "DECISION" {
+                                "DECISION[v1]".to_string()
+                            } else {
+                                f
+                            }
+                        })
+                        .collect();
                 } else if density >= 5 {
                     // Critical failure for high-density: Fallback to Raw
                     return format!("RAW|FBF|{}", text);
                 }
             }
         }
-        
+
         let flag_str = flags.join("+");
 
         // Faithfulness Scoring
@@ -610,15 +622,26 @@ impl Dialect {
             source_file: source.cloned(),
             extra: {
                 let mut map = HashMap::new();
-                map.insert("faithfulness".to_string(), serde_json::Value::Number(serde_json::Number::from_f64(faithfulness_score as f64).unwrap_or(serde_json::Number::from(0))));
+                map.insert(
+                    "faithfulness".to_string(),
+                    serde_json::Value::Number(
+                        serde_json::Number::from_f64(faithfulness_score as f64)
+                            .unwrap_or(serde_json::Number::from(0)),
+                    ),
+                );
                 if is_compliant_decision {
-                    map.insert("grammar_reg".to_string(), serde_json::Value::String("v1".to_string()));
+                    map.insert(
+                        "grammar_reg".to_string(),
+                        serde_json::Value::String("v1".to_string()),
+                    );
                 }
                 map
             },
         };
         let overlay_line = overlay.to_line();
-        if !overlay_line.is_empty() && (wing.is_some() || source.is_some() || !overlay.extra.is_empty()) {
+        if !overlay_line.is_empty()
+            && (wing.is_some() || source.is_some() || !overlay.extra.is_empty())
+        {
             lines.push(overlay_line);
         }
 
@@ -626,12 +649,14 @@ impl Dialect {
     }
 
     fn _calculate_faithfulness(&self, text: &str, entities: &[String], topics: &[String]) -> f32 {
-        if text.is_empty() { return 1.0; }
-        
+        if text.is_empty() {
+            return 1.0;
+        }
+
         // Basic heuristic: entity/topic density + sentence persistence
         let e_score = (entities.len() as f32 * 0.2).min(0.5);
         let t_score = (topics.len() as f32 * 0.1).min(0.5);
-        
+
         let score = e_score + t_score;
         (score * 100.0).round() / 100.0
     }
@@ -810,9 +835,22 @@ impl Dialect {
             .collect();
 
         let fact_signals = [
-            "decided", "is", "uses", "requires", "because", "means",
-            "therefore", "thus", "enables", "prevents", "causes",
-            "results", "switched", "chose", "replaced", "migrated",
+            "decided",
+            "is",
+            "uses",
+            "requires",
+            "because",
+            "means",
+            "therefore",
+            "thus",
+            "enables",
+            "prevents",
+            "causes",
+            "results",
+            "switched",
+            "chose",
+            "replaced",
+            "migrated",
         ];
 
         let mut scored: Vec<(i32, &str)> = sentences
@@ -821,9 +859,10 @@ impl Dialect {
                 let s_lower = s.to_lowercase();
                 let mut score = 0i32;
                 // Prefer sentences with named entities (starts with uppercase after first word)
-                if s.split_whitespace().skip(1).any(|w| {
-                    w.chars().next().map(|c| c.is_uppercase()).unwrap_or(false)
-                }) {
+                if s.split_whitespace()
+                    .skip(1)
+                    .any(|w| w.chars().next().map(|c| c.is_uppercase()).unwrap_or(false))
+                {
                     score += 2;
                 }
                 // Prefer factual signal words
@@ -908,10 +947,7 @@ impl Dialect {
             let emotions = self._detect_emotions(prop);
             let flags = self._detect_flags(prop);
 
-            let mut parts = vec![
-                format!("P{}:{}", idx, entity_str),
-                topic_str,
-            ];
+            let mut parts = vec![format!("P{}:{}", idx, entity_str), topic_str];
             if !emotions.is_empty() {
                 parts.push(emotions.join("+"));
             }
@@ -953,8 +989,7 @@ impl Dialect {
         text: &str,
         metadata: Option<HashMap<String, String>>,
     ) -> (String, f64) {
-        let full_topics: HashSet<String> =
-            self._extract_topics(text, 10).into_iter().collect();
+        let full_topics: HashSet<String> = self._extract_topics(text, 10).into_iter().collect();
         let compressed = self.compress(text, metadata);
         let compressed_lower = compressed.to_lowercase();
         let covered = full_topics
@@ -995,20 +1030,31 @@ impl Dialect {
         let added: Vec<String> = new_tokens.difference(&old_tokens).cloned().collect();
         let removed: Vec<String> = old_tokens.difference(&new_tokens).cloned().collect();
 
-        let change_ratio =
-            (added.len() + removed.len()) as f64 / old_tokens.len().max(1) as f64;
+        let change_ratio = (added.len() + removed.len()) as f64 / old_tokens.len().max(1) as f64;
 
         if change_ratio < 0.40 {
             let mut parts = Vec::new();
             if !added.is_empty() {
                 let mut sorted = added.clone();
                 sorted.sort();
-                parts.push(sorted.iter().map(|s| format!("+{}", s)).collect::<Vec<_>>().join(","));
+                parts.push(
+                    sorted
+                        .iter()
+                        .map(|s| format!("+{}", s))
+                        .collect::<Vec<_>>()
+                        .join(","),
+                );
             }
             if !removed.is_empty() {
                 let mut sorted = removed.clone();
                 sorted.sort();
-                parts.push(sorted.iter().map(|s| format!("-{}", s)).collect::<Vec<_>>().join(","));
+                parts.push(
+                    sorted
+                        .iter()
+                        .map(|s| format!("-{}", s))
+                        .collect::<Vec<_>>()
+                        .join(","),
+                );
             }
             if parts.is_empty() {
                 return "DELTA:(no change)".to_string();
@@ -1037,7 +1083,11 @@ mod tests {
     fn test_version_header_present() {
         let dialect = Dialect::default();
         let out = dialect.compress("Alice decided to switch to Rust.", None);
-        assert!(out.starts_with("V:3.2"), "V:3.2 header must be first line; got: {}", out);
+        assert!(
+            out.starts_with("V:3.2"),
+            "V:3.2 header must be first line; got: {}",
+            out
+        );
     }
 
     #[test]
@@ -1061,7 +1111,10 @@ mod tests {
         let zettel_line = out.lines().find(|l| l.starts_with("0:")).unwrap();
         let entity_part = zettel_line.split('|').next().unwrap(); // "0:ALI"
         let entities: Vec<&str> = entity_part.trim_start_matches("0:").split('+').collect();
-        assert!(entities.len() <= 1, "density=1 should yield at most 1 entity");
+        assert!(
+            entities.len() <= 1,
+            "density=1 should yield at most 1 entity"
+        );
     }
 
     #[test]
@@ -1075,7 +1128,10 @@ mod tests {
         let zettel_line = out.lines().find(|l| l.starts_with("0:")).unwrap();
         let entity_part = zettel_line.split('|').next().unwrap();
         let entities: Vec<&str> = entity_part.trim_start_matches("0:").split('+').collect();
-        assert!(entities.len() <= 5, "density=9 should yield at most 5 entities");
+        assert!(
+            entities.len() <= 5,
+            "density=9 should yield at most 5 entities"
+        );
     }
 
     #[test]
@@ -1089,7 +1145,10 @@ mod tests {
             extra: HashMap::new(),
         };
         let line = overlay.to_line();
-        assert!(line.starts_with("JSON:"), "overlay line must start with JSON:");
+        assert!(
+            line.starts_with("JSON:"),
+            "overlay line must start with JSON:"
+        );
         let parsed = MetadataOverlay::from_line(&line).unwrap();
         assert_eq!(parsed.wing, Some("technical".to_string()));
         assert_eq!(parsed.room, Some("rust".to_string()));
@@ -1102,7 +1161,11 @@ mod tests {
         meta.insert("wing".to_string(), "technical".to_string());
         meta.insert("source_file".to_string(), "session.md".to_string());
         let out = dialect.compress("Rust is fast.", Some(meta));
-        assert!(out.contains("JSON:"), "overlay JSON line must be emitted: {}", out);
+        assert!(
+            out.contains("JSON:"),
+            "overlay JSON line must be emitted: {}",
+            out
+        );
     }
 
     #[test]
@@ -1147,7 +1210,8 @@ mod tests {
     #[test]
     fn test_compress_propositions_format() {
         let dialect = Dialect::default();
-        let text = "Alice decided to use Rust. Bob chose tokio for async. The database uses SQLite.";
+        let text =
+            "Alice decided to use Rust. Bob chose tokio for async. The database uses SQLite.";
         let out = dialect.compress_propositions(text, None, 3, 5);
         assert!(out.starts_with("V:3.2"));
         // Should have P0: line
@@ -1159,7 +1223,11 @@ mod tests {
         let dialect = Dialect::default();
         let text = "Rust enables safe concurrency via ownership and borrowing.";
         let (_, score) = dialect.compress_with_faithfulness(text, None);
-        assert!((0.0..=1.0).contains(&score), "faithfulness must be 0.0–1.0, got {}", score);
+        assert!(
+            (0.0..=1.0).contains(&score),
+            "faithfulness must be 0.0–1.0, got {}",
+            score
+        );
     }
 
     #[test]

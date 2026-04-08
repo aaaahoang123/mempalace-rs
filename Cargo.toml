@@ -1,15 +1,16 @@
 [package]
 name = "mempalace-rs"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
-description = "A high-performance, local, offline-first AI memory system built in Rust"
+description = "High-performance, local AI memory with AAAK v3.2 protocol and temporal Knowledge Graph"
 license = "MIT"
 repository = "https://github.com/jxoesneon/mempalace-rs"
 homepage = "https://github.com/jxoesneon/mempalace-rs"
-keywords = ["memory", "ai", "mcp", "rag", "knowledge-graph"]
+keywords = ["memory", "ai", "mcp", "rag", "knowledge-graph", "aaak"]
 categories = ["command-line-utilities", "database", "artificial-intelligence"]
 readme = "README.md"
 documentation = "https://docs.rs/mempalace-rs"
+default-run = "mempalace-rs"
 exclude = [
     "models/*",
     ".fastembed_cache/*",

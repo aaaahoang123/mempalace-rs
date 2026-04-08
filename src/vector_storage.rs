@@ -95,7 +95,7 @@ impl VectorStorage {
 
         let embedder =
             TextEmbedding::try_new(init_opts).context("Failed to initialise fastembed")?;
-        
+
         Self::new_with_embedder(db_path, index_path, Arc::new(embedder))
     }
 
@@ -155,7 +155,7 @@ impl VectorStorage {
                 db.execute_batch(
                     "ALTER TABLE memories ADD COLUMN last_accessed INTEGER DEFAULT 0;
                      ALTER TABLE memories ADD COLUMN access_count INTEGER DEFAULT 0;
-                     ALTER TABLE memories ADD COLUMN importance_score REAL DEFAULT 5.0;"
+                     ALTER TABLE memories ADD COLUMN importance_score REAL DEFAULT 5.0;",
                 )?;
                 let now = now_unix();
                 db.execute("UPDATE memories SET last_accessed = ?1", params![now])?;

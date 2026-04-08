@@ -76,6 +76,8 @@ pub enum BenchCommands {
         path: String,
         #[arg(short, long, default_value = "raw")]
         mode: String,
+        #[arg(short, long, help = "Output results as JSON")]
+        json: bool,
     },
 }
 
@@ -152,8 +154,14 @@ async fn run_app(cli: Cli) -> Result<()> {
         Commands::Status => {
             storage.status(&config).await?;
         }
-        Commands::Prune { threshold, dry_run, wing } => {
-            let report = storage.prune_memories(&config, threshold, dry_run, wing).await?;
+        Commands::Prune {
+            threshold,
+            dry_run,
+            wing,
+        } => {
+            let report = storage
+                .prune_memories(&config, threshold, dry_run, wing)
+                .await?;
             println!("\n  🧹 Semantic Pruning Complete");
             println!("  {}", "─".repeat(28));
             println!("  Clusters found:      {}", report.clusters_found);
@@ -167,20 +175,27 @@ async fn run_app(cli: Cli) -> Result<()> {
         Commands::McpServer => {
             mempalace_rs::mcp_server::run_mcp_server().await?;
         }
-        Commands::Benchmark { bench_type } => {
-            match bench_type {
-                BenchCommands::Longmemeval { path, mode } => {
-                    let result = mempalace_rs::benchmark::run_longmemeval(std::path::Path::new(&path), &mode).await?;
+        Commands::Benchmark { bench_type } => match bench_type {
+            BenchCommands::Longmemeval { path, mode, json } => {
+                let result =
+                    mempalace_rs::benchmark::run_longmemeval(std::path::Path::new(&path), &mode)
+                        .await?;
+                if json {
+                    println!("{}", serde_json::to_string(&result)?);
+                } else {
                     println!("\n  📊 LongMemEval Benchmark Results ({})", mode);
                     println!("  {}", "─".repeat(45));
                     println!("  Recall@5:  {:.3}", result.recall_at_5);
                     println!("  Recall@10: {:.3}", result.recall_at_10);
                     println!("  NDCG@10:   {:.3}", result.ndcg_at_10);
-                    println!("  Time:      {:.1}s ({:.1} ms/query)", result.total_time_secs, result.avg_ms_per_query);
+                    println!(
+                        "  Time:      {:.1}s ({:.1} ms/query)",
+                        result.total_time_secs, result.avg_ms_per_query
+                    );
                     println!();
                 }
             }
-        }
+        },
     }
     Ok(())
 }
