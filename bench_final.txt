@@ -1,5 +1,11 @@
+   Compiling mempalace-rs v0.1.0 (/Users/meilynlopezcubero/mempalace-rs)
+   Compiling criterion-plot v0.5.0
+   Compiling ciborium v0.2.2
+   Compiling criterion v0.5.1
+    Finished `bench` profile [optimized] target(s) in 9.48s
+     Running unittests src/lib.rs (target/release/deps/mempalace_rs-13d281b3ef19d2a2)
 
-running 144 tests
+running 158 tests
 test convo_miner::tests::test_chunk_by_exchange_with_separator ... ignored
 test convo_miner::tests::test_chunk_by_paragraph_single_long_text ... ignored
 test convo_miner::tests::test_chunk_exchanges_by_exchange ... ignored
@@ -13,6 +19,20 @@ test convo_miner::tests::test_mine_convos_main_logic ... ignored
 test convo_miner::tests::test_prepare_convo_documents ... ignored
 test convo_miner::tests::test_process_convo_file ... ignored
 test convo_miner::tests::test_process_convo_file_empty ... ignored
+test dialect::tests::test_atomize_returns_propositions ... ignored
+test dialect::tests::test_compress_delta_large_change_gives_full ... ignored
+test dialect::tests::test_compress_delta_small_change ... ignored
+test dialect::tests::test_compress_emits_overlay_when_metadata_present ... ignored
+test dialect::tests::test_compress_propositions_format ... ignored
+test dialect::tests::test_compress_with_density_high ... ignored
+test dialect::tests::test_compress_with_density_low ... ignored
+test dialect::tests::test_custom_emotions_override ... ignored
+test dialect::tests::test_decode_parses_overlay ... ignored
+test dialect::tests::test_decode_parses_version ... ignored
+test dialect::tests::test_faithfulness_high_for_rich_text ... ignored
+test dialect::tests::test_faithfulness_score_bounded ... ignored
+test dialect::tests::test_metadata_overlay_roundtrip ... ignored
+test dialect::tests::test_version_header_present ... ignored
 test diary::tests::test_diary_create_and_read ... ignored
 test diary::tests::test_diary_delete ... ignored
 test diary::tests::test_diary_last_n_limit ... ignored
@@ -145,13 +165,15 @@ test storage::tests::test_storage_add_wing_duplicate ... ignored
 test storage::tests::test_storage_new_and_add_wing ... ignored
 test storage::tests::test_storage_new_memory ... ignored
 
-test result: ok. 0 passed; 0 failed; 144 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 158 ignored; 0 measured; 0 filtered out; finished in 0.00s
 
+     Running unittests src/bin/download_model.rs (target/release/deps/download_model-00abeb5a3dc67f2d)
 
 running 0 tests
 
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 
+     Running unittests src/main.rs (target/release/deps/mempalace_rs-451a05e40767e3fe)
 
 running 7 tests
 test tests::test_main_compress ... ignored
@@ -164,38 +186,55 @@ test tests::test_main_wakeup ... ignored
 
 test result: ok. 0 passed; 0 failed; 7 ignored; 0 measured; 0 filtered out; finished in 0.00s
 
+     Running unittests scripts/update_benchmarks.rs (target/release/deps/update_benchmarks-5d09c16b96b9b41a)
 
 running 0 tests
 
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 
-aaak_compression        time:   [25.398 µs 25.452 µs 25.520 µs]
-                        change: [-0.4975% +0.0822% +0.7491%] (p = 0.84 > 0.05)
-                        No change in performance detected.
-Found 9 outliers among 100 measurements (9.00%)
-  4 (4.00%) low mild
+     Running benches/benchmarks.rs (target/release/deps/benchmarks-075b3e166593943c)
+Gnuplot not found, using plotters backend
+Benchmarking aaak_compression
+Benchmarking aaak_compression: Warming up for 3.0000 s
+Benchmarking aaak_compression: Collecting 100 samples in estimated 5.0905 s (187k iterations)
+Benchmarking aaak_compression: Analyzing
+aaak_compression        time:   [27.698 µs 28.179 µs 29.038 µs]
+                        change: [+7.0319% +8.2452% +9.7905%] (p = 0.00 < 0.05)
+                        Performance has regressed.
+Found 2 outliers among 100 measurements (2.00%)
   1 (1.00%) high mild
-  4 (4.00%) high severe
-
-entity_detection        time:   [1.8245 µs 1.8278 µs 1.8311 µs]
-                        change: [-5.1728% -4.4253% -3.7309%] (p = 0.00 < 0.05)
-                        Performance has improved.
-Found 7 outliers among 100 measurements (7.00%)
-  2 (2.00%) low mild
-  4 (4.00%) high mild
   1 (1.00%) high severe
 
-token_counting          time:   [133.30 ns 133.82 ns 134.41 ns]
-                        change: [-4.3258% -2.8104% -1.6795%] (p = 0.00 < 0.05)
-                        Performance has improved.
-Found 5 outliers among 100 measurements (5.00%)
-  4 (4.00%) high mild
-  1 (1.00%) high severe
+Benchmarking entity_detection
+Benchmarking entity_detection: Warming up for 3.0000 s
+Benchmarking entity_detection: Collecting 100 samples in estimated 5.0038 s (2.4M iterations)
+Benchmarking entity_detection: Analyzing
+entity_detection        time:   [2.0609 µs 2.0648 µs 2.0696 µs]
+                        change: [+12.639% +13.024% +13.372%] (p = 0.00 < 0.05)
+                        Performance has regressed.
+Found 6 outliers among 100 measurements (6.00%)
+  1 (1.00%) low mild
+  3 (3.00%) high mild
+  2 (2.00%) high severe
 
-compression_stats       time:   [369.87 ns 373.20 ns 377.12 ns]
-                        change: [-0.7957% -0.0609% +0.7287%] (p = 0.88 > 0.05)
-                        No change in performance detected.
-Found 7 outliers among 100 measurements (7.00%)
-  2 (2.00%) high mild
+Benchmarking token_counting
+Benchmarking token_counting: Warming up for 3.0000 s
+Benchmarking token_counting: Collecting 100 samples in estimated 5.0003 s (33M iterations)
+Benchmarking token_counting: Analyzing
+token_counting          time:   [151.88 ns 154.41 ns 158.36 ns]
+                        change: [+13.384% +14.316% +15.845%] (p = 0.00 < 0.05)
+                        Performance has regressed.
+Found 6 outliers among 100 measurements (6.00%)
+  1 (1.00%) low mild
   5 (5.00%) high severe
+
+Benchmarking compression_stats
+Benchmarking compression_stats: Warming up for 3.0000 s
+Benchmarking compression_stats: Collecting 100 samples in estimated 5.0017 s (12M iterations)
+Benchmarking compression_stats: Analyzing
+compression_stats       time:   [422.04 ns 422.81 ns 423.62 ns]
+                        change: [+13.791% +14.581% +15.323%] (p = 0.00 < 0.05)
+                        Performance has regressed.
+Found 1 outliers among 100 measurements (1.00%)
+  1 (1.00%) high mild
 

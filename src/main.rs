@@ -51,6 +51,15 @@ enum Commands {
     Split { dir: String },
     #[command(about = "Show what has been filed")]
     Status,
+    #[command(about = "Semantic deduplication. Merges similar memories.")]
+    Prune {
+        #[arg(short, long, default_value_t = 0.85)]
+        threshold: f32,
+        #[arg(short, long)]
+        dry_run: bool,
+        #[arg(short, long)]
+        wing: Option<String>,
+    },
     #[command(name = "mcp-server", about = "Run the MCP server over stdio")]
     McpServer,
 }
@@ -127,6 +136,18 @@ async fn run_app(cli: Cli) -> Result<()> {
         }
         Commands::Status => {
             storage.status(&config).await?;
+        }
+        Commands::Prune { threshold, dry_run, wing } => {
+            let report = storage.prune_memories(&config, threshold, dry_run, wing).await?;
+            println!("\n  🧹 Semantic Pruning Complete");
+            println!("  {}", "─".repeat(28));
+            println!("  Clusters found:      {}", report.clusters_found);
+            println!("  Memories merged:     {}", report.merged);
+            println!("  Est. tokens saved:   {}", report.tokens_saved_est);
+            if dry_run {
+                println!("\n  [DRY RUN] No changes were made to the database.");
+            }
+            println!();
         }
         Commands::McpServer => {
             mempalace_rs::mcp_server::run_mcp_server().await?;

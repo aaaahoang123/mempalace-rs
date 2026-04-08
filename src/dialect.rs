@@ -584,6 +584,72 @@ impl Dialect {
     // Phase 1 — versioned decode
     // ---------------------------------------------------------------------------
 
+    /// Phase 8: Merge multiple AAAK summaries into one (the first one is the "winner").
+    /// Unionizes topics and entities, keeps winner's arc/quote/emotions.
+    pub fn merge_aaaks(&self, blocks: &[String]) -> String {
+        if blocks.is_empty() {
+            return String::new();
+        }
+        if blocks.len() == 1 {
+            return blocks[0].clone();
+        }
+
+        let mut all_entities = HashSet::new();
+        let mut all_topics = HashSet::new();
+
+        for block in blocks {
+            let decoded = self.decode(block);
+            if let Some(zettels) = decoded.get("zettels").and_then(|z| z.as_array()) {
+                for zettel in zettels {
+                    if let Some(entities) = zettel.get("entities").and_then(|e| e.as_array()) {
+                        for e in entities {
+                            if let Some(s) = e.as_str() {
+                                all_entities.insert(s.to_string());
+                            }
+                        }
+                    }
+                    if let Some(topics) = zettel.get("topics").and_then(|t| t.as_array()) {
+                        for t in topics {
+                            if let Some(s) = t.as_str() {
+                                all_topics.insert(s.to_string());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Winner is the first block
+        let winner = &blocks[0];
+        let mut lines: Vec<String> = winner.lines().map(|s| s.to_string()).collect();
+
+        // Update the winner's Zettel line (usually the 3rd line or 2nd if no version header??)
+        // Actually V:3.2 has version on line 1, header on line 2, zettels starting line 3.
+        for line in &mut lines {
+            if line.contains('|') && !line.starts_with("JSON:") && !line.starts_with("V:") {
+                let parts: Vec<&str> = line.split('|').collect();
+                if parts.len() >= 2 && parts[0].contains(':') {
+                    // This is a zettel line: entity_arc|topics|...
+                    let mut entities_list: Vec<_> = all_entities.iter().cloned().collect();
+                    entities_list.sort();
+                    let arc_prefix = parts[0].split(':').next().unwrap_or("0");
+                    let new_entities = format!("{}:{}", arc_prefix, entities_list.join("+"));
+
+                    let mut topics_list: Vec<_> = all_topics.iter().cloned().collect();
+                    topics_list.sort();
+                    let new_topics = topics_list.join("_");
+
+                    let mut new_parts = parts.clone();
+                    new_parts[0] = &new_entities;
+                    new_parts[1] = &new_topics;
+                    *line = new_parts.join("|");
+                }
+            }
+        }
+
+        lines.join("\n")
+    }
+
     pub fn decode(&self, dialect_text: &str) -> serde_json::Value {
         let lines: Vec<&str> = dialect_text.trim().split('\n').collect();
         let mut result = serde_json::json!({

@@ -346,6 +346,18 @@ impl McpServer {
                         },
                         "required": ["agent"]
                     }
+                },
+                {
+                    "name": "tool_prune",
+                    "description": "Semantic deduplication. Finds and merges similar memories.",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "threshold": { "type": "number", "default": 0.85 },
+                            "dry_run": { "type": "boolean", "default": true },
+                            "wing": { "type": "string" }
+                        }
+                    }
                 }
             ]
         }))
@@ -378,6 +390,7 @@ impl McpServer {
             "tool_kg_stats" => self.tool_kg_stats().await,
             "tool_diary_write" => self.tool_diary_write(args).await,
             "tool_diary_read" => self.tool_diary_read(args).await,
+            "tool_prune" => self.tool_prune(args).await,
             _ => Err(anyhow!("Unknown tool: {}", name)),
         }
     }
@@ -631,6 +644,25 @@ impl McpServer {
 
         let entries = diary::read_diary(agent, last_n)?;
         Ok(json!({ "entries": entries }))
+    }
+
+    pub(crate) async fn tool_prune(&self, args: &Value) -> Result<Value> {
+        let threshold = args["threshold"].as_f64().unwrap_or(0.85) as f32;
+        let dry_run = args["dry_run"].as_bool().unwrap_or(true);
+        let wing = args["wing"].as_str().map(|s| s.to_string());
+
+        let storage_path = self.config.config_dir.join("palace.db");
+        let storage = crate::storage::Storage::new(storage_path.to_str().unwrap_or("palace.db"))?;
+
+        let report = storage
+            .prune_memories(&self.config, threshold, dry_run, wing)
+            .await?;
+
+        Ok(json!({
+            "status": "success",
+            "dry_run": dry_run,
+            "report": report
+        }))
     }
 }
 

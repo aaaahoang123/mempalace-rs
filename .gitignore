@@ -17,3 +17,5 @@ GEMINI.md
 /models/
 .fastembed_cache/
 .worktrees/
+bench_final.txt
+examples/measure_improvements.rs
