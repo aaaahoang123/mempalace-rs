@@ -61,12 +61,12 @@ Simply drag and drop the `mempalace-rs.skill` file into your Windsurf chat or pr
 ## Performance
 
 <!-- BENCH_TABLE_START -->
-| Operation          | Throughput        | Latency |
-|--------------------|-------------------|---------|
-| AAAK Compression (V:3.2) | ~18500 ops/sec    | 54 µs   |
-| Entity Detection   | ~244545 ops/sec   | 4 µs    |
-| Token Counting     | ~3717947 ops/sec  | 269 ns  |
-| Compression Stats  | ~1157373 ops/sec  | 864 ns  |
+| Operation                | Throughput      | Latency |
+|--------------------------|-----------------|---------|
+| AAAK Compression (V:3.2) | ~18500 ops/sec  | 54 µs   |
+| Entity Detection         | ~244545 ops/sec | 4 µs    |
+| Token Counting           | ~3717947 ops/sec| 269 ns  |
+| Compression Stats        | ~1157373 ops/sec| 864 ns  |
 <!-- BENCH_TABLE_END -->
 
 Benchmarked on Apple Silicon M4, 16GB RAM
@@ -95,6 +95,9 @@ cargo run -- search "async patterns in Rust"
 
 # Get wakeup context
 cargo run -- wakeup
+
+# Semantic Pruning
+cargo run -- prune --threshold 0.8
 ```
 
 ## Requirements
@@ -206,8 +209,8 @@ mempalace-rs/
 │   ├── lib.rs               # Module exports
 │   ├── storage.rs           # MemoryStack (L0-L3)
 │   ├── searcher.rs          # Vector semantic search
-│   ├── mcp_server.rs        # 19 MCP tools
-│   ├── dialect.rs           # AAAK compression
+│   ├── mcp_server.rs        # 20 MCP tools
+│   ├── dialect.rs           # AAAK compression (V:3.2)
 │   ├── knowledge_graph.rs   # Temporal triples
 │   ├── diary.rs             # SQLite-backed agent journal
 │   ├── miner.rs             # File chunking, room detection
@@ -226,7 +229,7 @@ mempalace-rs/
 | `searcher.rs`          | Vector semantic search                     |
 | `dialect.rs`           | AAAK compression (~30x token reduction)    |
 | `knowledge_graph.rs`   | Temporal triples with valid_from/valid_to  |
-| `mcp_server.rs`        | 19 MCP tools for agent integration         |
+| `mcp_server.rs`        | 20 MCP tools for agent integration         |
 | `diary.rs`             | SQLite-backed agent journal                |
 | `miner.rs`             | File chunking, room detection              |
 | `entity_detector.rs`   | Heuristic NER (People/Projects/Terms)      |
@@ -280,4 +283,4 @@ This is a Rust port of the original [MemPalace](https://github.com/milla-jovovic
 
 ## Agent Integration
 
-Load `mempalace-rs.skill` for comprehensive documentation of all 19 MCP tools, architecture details, and best practices for AI agents interacting with the palace.
+Load `mempalace-rs.skill` for comprehensive documentation of all 20 MCP tools, architecture details, and best practices for AI agents interacting with the palace.
