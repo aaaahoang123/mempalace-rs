@@ -24,6 +24,7 @@ A high-performance, local, offline-first AI memory system built in Rust. Gives A
 ## Installation
 
 ### From Source
+
 Requires Rust 1.70+ and the `cargo` build system.
 
 ```bash
@@ -33,7 +34,9 @@ cargo install --path .
 ```
 
 ### From Crates.io (Coming Soon)
+
 Once stable, you can install the binary directly:
+
 ```bash
 cargo install mempalace-rs
 ```
@@ -43,19 +46,24 @@ cargo install mempalace-rs
 Connect your palace to your favorite agent in seconds. For all 15+ supported platforms, see [SKILLS_GUIDE.md](SKILLS_GUIDE.md).
 
 ### 1. Claude Code
+
 Open your terminal in the project root and run:
+
 ```bash
 claude add mcp "mempalace-rs" --command "cargo" --args "run,--,mcp-server" --cwd "$(pwd)"
 ```
 
 ### 2. Cursor
+
 Go to **Settings > Features > MCP > Add New MCP Server**:
+
 - **Name**: `mempalace`
 - **Type**: `command`
 - **Command**: `cargo run -- mcp-server`
 - **CWD**: Full path to this repository
 
 ### 3. Windsurf
+
 Simply drag and drop the `mempalace-rs.skill` file into your Windsurf chat or project sidebar to load all tools and instructions automatically.
 
 ## Performance & Integrity
@@ -63,33 +71,39 @@ Simply drag and drop the `mempalace-rs.skill` file into your Windsurf chat or pr
 MemPalace-rs is validated against the **2026 Gold Standards** for AI memory. Our methodology prioritizes high-integrity reasoning and ultra-long context persistence over synthetic "recall-only" metrics.
 
 ### 2026 Gold Standard Validation
-*Verified multi-hop reasoning, 1M+ token persistence, and structural integrity.*
+
+_Verified multi-hop reasoning, 1M+ token persistence, and structural integrity._
 
 <!-- GOLD_STANDARD_START -->
-| Benchmark | Score | Metric | Latency |
-|-----------|-------|--------|---------|
-| **RULER** | 1.000 | nDCG | 157.0ms |
-| **BABILONG** | 1.000 | Reasoning | 45.0ms |
-| **BEAM** | 1.000 | Nugget | 26.0ms |
-| **STRUCTMEM** | 1.000 | Structural | 34.0ms |
+
+| Benchmark     | Score | Metric     | Latency |
+| ------------- | ----- | ---------- | ------- |
+| **RULER**     | 1.000 | nDCG       | 157.0ms |
+| **BABILONG**  | 1.000 | Reasoning  | 45.0ms  |
+| **BEAM**      | 1.000 | Nugget     | 26.0ms  |
+| **STRUCTMEM** | 1.000 | Structural | 34.0ms  |
+
 <!-- GOLD_STANDARD_END -->
 
 > [!TIP]
 > For a full technical breakdown of our anti-fraud methodology—including strict `top_k <= 10` limits and end-to-end reasoning validation—please see the [Detailed Benchmarking Report](benchmarks/2026_GOLD_STANDARDS.md).
 
 ### Low-Level Micro-Benchmarks
-*Raw throughput measured on local hardware.*
+
+_Raw throughput measured on local hardware._
 
 <!-- BENCH_TABLE_START -->
-| Operation          | Throughput        | Latency |
-|--------------------|-------------------|---------|
-| AAAK Compression   | ~1793 ops/sec     | 557 µs  |
-| Entity Detection   | ~257567 ops/sec   | 4 µs    |
-| Token Counting     | ~3575680 ops/sec  | 280 ns  |
-| Compression Stats  | ~1266871 ops/sec  | 789 ns  |
+
+| Operation         | Throughput       | Latency |
+| ----------------- | ---------------- | ------- |
+| AAAK Compression  | ~1793 ops/sec    | 557 µs  |
+| Entity Detection  | ~257567 ops/sec  | 4 µs    |
+| Token Counting    | ~3575680 ops/sec | 280 ns  |
+| Compression Stats | ~1266871 ops/sec | 789 ns  |
+
 <!-- BENCH_TABLE_END -->
 
-*Benchmarks performed on Apple Silicon M4. Results are generated autonomously by CI on every release.*
+_Benchmarks performed on Apple Silicon M4. Results are generated autonomously by CI on every release._
 
 Benchmarked on Apple Silicon M4, 16GB RAM. Performance may vary by hardware.
 
@@ -169,16 +183,16 @@ WING|ROOM|DATE|SOURCE
 
 ## CLI Commands
 
-| Command          | Description                             |
-|------------------|-----------------------------------------|
-| `init <dir>`     | Guided onboarding with room detection   |
-| `mine <dir>`     | Ingest projects or conversations        |
-| `search <query>` | Semantic search over ingested data      |
-| `wakeup`         | Get L0+L1 context (~600-900 tokens)     |
-| `compress`       | AAAK compress drawers                   |
-| `split <dir>`    | Split mega-files into per-session files |
+| Command          | Description                                 |
+| ---------------- | ------------------------------------------- |
+| `init <dir>`     | Guided onboarding with room detection       |
+| `mine <dir>`     | Ingest projects or conversations            |
+| `search <query>` | Semantic search over ingested data          |
+| `wakeup`         | Get L0+L1 context (~600-900 tokens)         |
+| `compress`       | AAAK compress drawers                       |
+| `split <dir>`    | Split mega-files into per-session files     |
 | `prune`          | Semantic deduplication (clustering/merging) |
-| `mcp-server`     | Run MCP server over stdio               |
+| `mcp-server`     | Run MCP server over stdio                   |
 
 ## MCP Tools
 
@@ -245,17 +259,17 @@ mempalace-rs/
 
 ## Key Modules
 
-| Module                 | Purpose                                    |
-|------------------------|--------------------------------------------|
-| `storage.rs`           | MemoryStack (L0-L3) implementation         |
-| `searcher.rs`          | Vector semantic search                     |
-| `dialect.rs`           | AAAK compression (~30x token reduction)    |
-| `knowledge_graph.rs`   | Temporal triples with valid_from/valid_to  |
-| `mcp_server.rs`        | 20 MCP tools for agent integration         |
-| `diary.rs`             | SQLite-backed agent journal                |
-| `miner.rs`             | File chunking, room detection              |
-| `entity_detector.rs`   | Heuristic NER (People/Projects/Terms)      |
-| `palace_graph.rs`      | Room navigation graph (BFS, tunnels)       |
+| Module               | Purpose                                   |
+| -------------------- | ----------------------------------------- |
+| `storage.rs`         | MemoryStack (L0-L3) implementation        |
+| `searcher.rs`        | Vector semantic search                    |
+| `dialect.rs`         | AAAK compression (~30x token reduction)   |
+| `knowledge_graph.rs` | Temporal triples with valid_from/valid_to |
+| `mcp_server.rs`      | 20 MCP tools for agent integration        |
+| `diary.rs`           | SQLite-backed agent journal               |
+| `miner.rs`           | File chunking, room detection             |
+| `entity_detector.rs` | Heuristic NER (People/Projects/Terms)     |
+| `palace_graph.rs`    | Room navigation graph (BFS, tunnels)      |
 
 ## Development
 
