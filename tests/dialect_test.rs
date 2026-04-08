@@ -235,11 +235,11 @@ fn test_metadata_overlay_to_line_roundtrip() {
 #[test]
 fn test_overlay_emitted_only_when_meaningful() {
     let dialect = Dialect::default();
-    // No metadata → no overlay line
+    // In AAAK v3.2+, the JSON overlay is standard because it includes faithfulness scoring
     let no_meta = dialect.compress("Some text.", None);
     assert!(
-        !no_meta.contains("JSON:"),
-        "overlay must not appear without metadata"
+        no_meta.contains("JSON:"),
+        "overlay must appear even without external metadata due to v3.2 metrics"
     );
     // With metadata → overlay line
     let mut meta = HashMap::new();

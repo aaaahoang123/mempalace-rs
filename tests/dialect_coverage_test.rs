@@ -106,7 +106,11 @@ fn test_dialect_key_sentence_edge_cases() {
     let dialect = Dialect::default();
     // No sentences long enough
     let out = dialect.compress("Hi. No.", None);
-    let summary_part = out.lines().filter(|l| !l.starts_with("JSON:")).collect::<Vec<_>>().join("\n");
+    let summary_part = out
+        .lines()
+        .filter(|l| !l.starts_with("JSON:"))
+        .collect::<Vec<_>>()
+        .join("\n");
     assert!(!summary_part.contains("\""));
 
     // Long sentence truncation

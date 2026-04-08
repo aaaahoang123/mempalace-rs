@@ -127,8 +127,9 @@ jobs:
 
   benchmarks:
     name: Update Benchmarks
+    needs: [test]
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/feature/aaak-evolution')
+    if: (github.event_name == 'push' || github.event_name == 'pull_request') && (contains(github.ref, 'main') || contains(github.ref, 'master') || contains(github.ref, 'feature/aaak-evolution') || contains(github.head_ref, 'feature/aaak-evolution'))
     permissions:
       contents: write
     steps:
