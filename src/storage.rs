@@ -827,7 +827,8 @@ mod tests {
 
     #[test]
     fn test_memory_stack_new() {
-        let config = MempalaceConfig::default();
+        let temp_dir = tempfile::tempdir().unwrap();
+        let config = MempalaceConfig::new(Some(temp_dir.path().to_path_buf()));
         let stack = MemoryStack::new(config);
         assert!(stack.l0.path.to_string_lossy().contains("identity.txt"));
         assert!(stack.l1.wing.is_none());
@@ -835,7 +836,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_layer_async_failures() {
-        let config = MempalaceConfig::default();
+        let temp_dir = tempfile::tempdir().unwrap();
+        let config = MempalaceConfig::new(Some(temp_dir.path().to_path_buf()));
         // Set an invalid collection name to force error after connecting
         let invalid_config = MempalaceConfig {
             collection_name: "non_existent_collection_12345".to_string(),

@@ -229,7 +229,8 @@ mod tests {
     #[test]
     fn test_extract_people() {
         let lines = vec!["Hello Ben and Alice\n".to_string()];
-        let mut config = MempalaceConfig::default();
+        let temp_config_dir = tempfile::tempdir().unwrap();
+        let mut config = MempalaceConfig::new(Some(temp_config_dir.path().to_path_buf()));
         config
             .people_map
             .insert("jdoe".to_string(), "John".to_string());

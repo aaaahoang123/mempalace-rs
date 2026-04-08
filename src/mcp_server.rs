@@ -629,9 +629,15 @@ pub async fn run_mcp_server() -> Result<()> {
 mod tests {
     use super::*;
 
+    fn setup_test() -> (MempalaceConfig, tempfile::TempDir) {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let config = MempalaceConfig::new(Some(temp_dir.path().to_path_buf()));
+        (config, temp_dir)
+    }
+
     #[tokio::test]
     async fn test_mcp_initialize() {
-        let config = MempalaceConfig::default();
+        let (config, _td) = setup_test();
         let server = McpServer::new_test(config);
         let res = server.handle_initialize(None).unwrap();
         assert_eq!(res["serverInfo"]["name"], "mempalace-rs");
@@ -639,7 +645,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_mcp_tools_list() {
-        let config = MempalaceConfig::default();
+        let (config, _td) = setup_test();
         let server = McpServer::new_test(config);
         let res = server.handle_tools_list().unwrap();
         let tools = res["tools"].as_array().unwrap();
@@ -648,7 +654,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_mcp_tool_list_wings() {
-        let config = MempalaceConfig::default();
+        let (config, _td) = setup_test();
         let mut server = McpServer::new_test(config);
         server.pg.add_room("room1", "wing1");
 
@@ -658,7 +664,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_mcp_tool_list_rooms() {
-        let config = MempalaceConfig::default();
+        let (config, _td) = setup_test();
         let mut server = McpServer::new_test(config);
         server.pg.add_room("room1", "wing1");
 
@@ -670,7 +676,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_mcp_tool_get_taxonomy() {
-        let config = MempalaceConfig::default();
+        let (config, _td) = setup_test();
         let mut server = McpServer::new_test(config);
         server.pg.add_room("room1", "wing1");
 
@@ -680,7 +686,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_mcp_tool_graph_stats() {
-        let config = MempalaceConfig::default();
+        let (config, _td) = setup_test();
         let mut server = McpServer::new_test(config);
         server.pg.add_room("room1", "wing1");
 
@@ -691,7 +697,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_mcp_tool_get_aaak_spec() {
-        let config = MempalaceConfig::default();
+        let (config, _td) = setup_test();
         let server = McpServer::new_test(config);
         let res = server.tool_get_aaak_spec().await.unwrap();
         assert!(res["spec"].as_str().unwrap().contains("AAAK Dialect"));
@@ -699,16 +705,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_mcp_tool_diary_ops() {
-        // Use a temp directory for diary database
-        let temp_dir = std::env::temp_dir().join("mempalace_mcp_test");
-        let _ = std::fs::create_dir_all(&temp_dir);
-        std::env::set_var("HOME", &temp_dir);
-
-        // Clean up any existing test diary
-        let diary_db = temp_dir.join(".mempalace").join("diary.db");
-        let _ = std::fs::remove_file(&diary_db);
-
-        let config = MempalaceConfig::default();
+        let (config, _td) = setup_test();
         let server = McpServer::new_test(config);
 
         let write_args = json!({ "agent": "test-agent", "content": "test diary entry" });
@@ -717,12 +714,7 @@ mod tests {
         let read_args = json!({ "agent": "test-agent", "last_n": 1 });
         let res = server.tool_diary_read(&read_args).await.unwrap();
         let entries = res["entries"].as_array().unwrap();
-        // Now diary actually persists entries
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0]["content"], "test diary entry");
-
-        // Cleanup
-        let _ = std::fs::remove_file(&diary_db);
-        let _ = std::fs::remove_dir_all(&temp_dir);
     }
 }

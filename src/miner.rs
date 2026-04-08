@@ -528,7 +528,8 @@ mod tests {
     #[test]
     fn test_process_project_file() {
         let content = "A".repeat(50);
-        let config = MempalaceConfig::default();
+        let temp_config_dir = tempfile::tempdir().unwrap();
+        let config = MempalaceConfig::new(Some(temp_config_dir.path().to_path_buf()));
         let path = std::path::Path::new("/project/src/main.rs");
         let project_path = std::path::Path::new("/project");
 
@@ -556,7 +557,8 @@ mod tests {
     #[tokio::test]
     async fn test_mine_project_invalid_dir() {
         let storage = Storage::new("test_mine.db").unwrap();
-        let config = MempalaceConfig::default();
+        let temp_config_dir = tempfile::tempdir().unwrap();
+        let config = MempalaceConfig::new(Some(temp_config_dir.path().to_path_buf()));
         let result = mine_project("/nonexistent/dir", &storage, &config, None).await;
         assert!(result.is_err());
         let _ = fs::remove_file("test_mine.db");
@@ -565,10 +567,11 @@ mod tests {
     #[tokio::test]
     async fn test_mine_project_storage_error() {
         let storage = Storage::new("test_mine_storage.db").unwrap();
-        let config = MempalaceConfig::default();
+        let temp_config_dir = tempfile::tempdir().unwrap();
+        let config = MempalaceConfig::new(Some(temp_config_dir.path().to_path_buf()));
         let temp_dir = tempfile::tempdir().unwrap();
         // Add a file to trigger the DB connection step
-        fs::write(temp_dir.path().join("test.rs"), "fn main() {}").unwrap();
+        fs::write(temp_dir.path().join("test.rs"), "A".repeat(100)).unwrap();
         let result = mine_project(temp_dir.path().to_str().unwrap(), &storage, &config, None).await;
         assert!(result.is_ok());
         let _ = fs::remove_file("test_mine_storage.db");
@@ -577,10 +580,11 @@ mod tests {
     #[tokio::test]
     async fn test_mine_project_with_file() {
         let storage = Storage::new("test_mine_file.db").unwrap();
-        let config = MempalaceConfig::default();
+        let temp_config_dir = tempfile::tempdir().unwrap();
+        let config = MempalaceConfig::new(Some(temp_config_dir.path().to_path_buf()));
         let temp_dir = tempfile::tempdir().unwrap();
         let file_path = temp_dir.path().join("main.rs");
-        fs::write(&file_path, "fn main() {}").unwrap();
+        fs::write(&file_path, "A".repeat(100)).unwrap();
 
         let result = mine_project(temp_dir.path().to_str().unwrap(), &storage, &config, None).await;
         assert!(result.is_ok());
