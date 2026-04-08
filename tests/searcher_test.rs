@@ -9,7 +9,6 @@ async fn test_searcher_initialization() {
 }
 
 #[tokio::test]
-#[ignore] // This needs a running ChromaDB server
 async fn test_searcher_search_empty() {
     let config = MempalaceConfig::default();
     let searcher = Searcher::new(config);
@@ -19,7 +18,6 @@ async fn test_searcher_search_empty() {
 }
 
 #[tokio::test]
-#[ignore] // This needs a running ChromaDB server
 async fn test_search_memories_programmatic() {
     let config = MempalaceConfig::default();
     let searcher = Searcher::new(config);

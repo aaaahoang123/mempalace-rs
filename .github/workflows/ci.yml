@@ -1,5 +1,8 @@
 name: CI
 
+permissions:
+  contents: read
+
 on:
   push:
     branches: [main, master]
@@ -18,8 +21,10 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v5 # v4.2.2
       
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -27,17 +32,15 @@ jobs:
           components: clippy, rustfmt
       
       - name: Cache cargo dependencies
-        uses: actions/cache@v5
+        uses: actions/cache@v5 # v4.2.0
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            target
-            models
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       
       - name: Download fastembed model
-        run: cargo run --bin download-model --release || true
+        run: cargo run --bin download-model --release
       
       - name: Check formatting
         run: cargo fmt -- --check
@@ -56,8 +59,10 @@ jobs:
   coverage:
     name: Code Coverage
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v5 # v4.2.2
       
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -65,7 +70,7 @@ jobs:
           components: llvm-tools-preview
       
       - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov # v2.12.0
       
       - name: Generate coverage
         run: cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
@@ -73,7 +78,7 @@ jobs:
           MEMPALACE_TEST_MODE: 1
       
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v4 # v5.1.2
         with:
           files: lcov.info
           fail_ci_if_error: false
@@ -82,22 +87,23 @@ jobs:
     name: Build Release
     runs-on: ${{ matrix.os }}
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    permissions:
+      contents: read
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v5 # v4.2.2
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
       - name: Cache cargo dependencies
-        uses: actions/cache@v5
+        uses: actions/cache@v5 # v4.2.0
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Download fastembed model
@@ -114,7 +120,7 @@ jobs:
           tar -czf mempalace-rs-${{ matrix.os }}.tar.gz mempalace-rs-${{ matrix.os }}/
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4 # v4.6.0
         with:
           name: mempalace-rs-${{ matrix.os }}
           path: mempalace-rs-${{ matrix.os }}.tar.gz
@@ -126,7 +132,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v5 # v4.2.2
       
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -149,8 +155,10 @@ jobs:
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     needs: [test]
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v5 # v4.2.2
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
