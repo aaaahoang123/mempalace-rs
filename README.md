@@ -63,10 +63,10 @@ Simply drag and drop the `mempalace-rs.skill` file into your Windsurf chat or pr
 <!-- BENCH_TABLE_START -->
 | Operation          | Throughput        | Latency |
 |--------------------|-------------------|---------|
-| AAAK Compression   | ~49,000 ops/sec   | ~20 µs  |
-| Entity Detection   | ~196,000 ops/sec  | ~5 µs   |
-| Token Counting     | ~5,400,000 ops/sec| ~186 ns |
-| Compression Stats  | ~1,130,000 ops/sec| ~886 ns |
+| AAAK Compression   | ~20120 ops/sec    | 50 µs   |
+| Entity Detection   | ~258026 ops/sec   | 4 µs    |
+| Token Counting     | ~3666843 ops/sec  | 273 ns  |
+| Compression Stats  | ~1333192 ops/sec  | 750 ns  |
 <!-- BENCH_TABLE_END -->
 
 Benchmarked on Apple Silicon M4, 16GB RAM
