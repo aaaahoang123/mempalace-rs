@@ -3,9 +3,8 @@ use fastembed::{EmbeddingModel, InitOptions, TextEmbedding};
 
 fn main() {
     println!("Downloading AllMiniLML6V2 model...");
-    let _ = TextEmbedding::try_new(
-        InitOptions::new(EmbeddingModel::AllMiniLML6V2).with_show_download_progress(true),
-    )
-    .expect("Failed to download model");
+    let mut opts = InitOptions::new(EmbeddingModel::AllMiniLML6V2).with_show_download_progress(true);
+    opts = opts.with_cache_dir(std::path::PathBuf::from("models"));
+    let _ = TextEmbedding::try_new(opts).expect("Failed to download model");
     println!("Model downloaded successfully!");
 }
