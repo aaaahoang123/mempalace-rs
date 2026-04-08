@@ -9,7 +9,7 @@ This work evolved the AAAK (Atomic-Atomic-Atomic-Knowledge) dialect in `mempalac
 
 ## 2. Key Accomplishments
 
-### Implementation Phases (as per `AAA_PLAN.md`)
+### Implementation Phases (as per [evolution_plan.md](file:///Users/meilynlopezcubero/mempalace-rs/docs/aaak/evolution_plan.md))
 1.  **Phase 1: AAAK Versioning (v3.2)**
     *   Dialect output now prepends `V:3.2` header for future-proofing.
     *   `decode` method updated to parse version metadata.
@@ -36,7 +36,7 @@ This work evolved the AAAK (Atomic-Atomic-Atomic-Knowledge) dialect in `mempalac
     *   Reduced evaluation time from ~20m to < 45s via shared embedder optimization.
     *   Verified a **1.2% improvement in relative retrieval efficiency** (AAAK / Raw).
 
-For deep architectural context, see: [evolve_hardening_adr.md](file:///Users/meilynlopezcubero/mempalace-rs/docs/aaak/evolve_hardening_adr.md).
+For deep architectural context, see: [aaak-evolution-hardening.md](file:///Users/meilynlopezcubero/mempalace-rs/docs/adrs/aaak-evolution-hardening.md).
 
 ## 3. Testing & Verification
 *   **Coverage:** 197 unit and integration tests passed, including new hard-stakes logic tests.
