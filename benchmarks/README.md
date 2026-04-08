@@ -13,12 +13,14 @@ cargo bench
 ### Results (Apple Silicon M4, 16GB RAM)
 
 <!-- BENCH_TABLE_START -->
-| Operation          | Throughput        | Latency |
-|--------------------|-------------------|---------|
-| AAAK Compression   | ~1793 ops/sec     | 557 µs  |
-| Entity Detection   | ~257567 ops/sec   | 4 µs    |
-| Token Counting     | ~3575680 ops/sec  | 280 ns  |
-| Compression Stats  | ~1266871 ops/sec  | 789 ns  |
+
+| Operation         | Throughput       | Latency |
+| ----------------- | ---------------- | ------- |
+| AAAK Compression  | ~1793 ops/sec    | 557 µs  |
+| Entity Detection  | ~257567 ops/sec  | 4 µs    |
+| Token Counting    | ~3575680 ops/sec | 280 ns  |
+| Compression Stats | ~1266871 ops/sec | 789 ns  |
+
 <!-- BENCH_TABLE_END -->
 
 **Binary Size**: 7.9 MB (release build)  
@@ -68,12 +70,12 @@ Tests multi-hop reasoning across 10 long conversations (19-32 sessions each, 400
 
 Run benchmarks with different compression modes:
 
-| Mode      | Description                                 | Expected Recall@5 |
-|-----------|---------------------------------------------|-------------------|
-| `raw`     | Full verbatim retrieval                     | ~96.6%            |
-| `aaak`    | AAAK compressed retrieval (~30x smaller)    | ~84.2%            |
-| `rooms`   | Room-based metadata boosting                | ~89.4%            |
-| `hybrid`  | Combined AAAK + room boosting               | ~91.0%            |
+| Mode     | Description                              | Expected Recall@5 |
+| -------- | ---------------------------------------- | ----------------- |
+| `raw`    | Full verbatim retrieval                  | ~96.6%            |
+| `aaak`   | AAAK compressed retrieval (~30x smaller) | ~84.2%            |
+| `rooms`  | Room-based metadata boosting             | ~89.4%            |
+| `hybrid` | Combined AAAK + room boosting            | ~91.0%            |
 
 ## Performance Notes
 
@@ -84,13 +86,13 @@ Run benchmarks with different compression modes:
 
 ## Comparison with Python
 
-| Benchmark                  | Python      | Rust        | Speedup |
-|----------------------------|-------------|-------------|---------|
-| LongMemEval (500)          | ~5 min      | ~30 sec     | **10x** |
-| LoCoMo (1,986)             | ~20 min     | ~2 min      | **10x** |
-| File Mining (100MB)        | ~2 min      | ~15 sec     | **8x**  |
-| AAAK Compression (1KB)     | ~200 µs     | ~20 µs      | **10x** |
-| Entity Detection           | ~50 µs      | ~5 µs       | **10x** |
+| Benchmark              | Python  | Rust    | Speedup |
+| ---------------------- | ------- | ------- | ------- |
+| LongMemEval (500)      | ~5 min  | ~30 sec | **10x** |
+| LoCoMo (1,986)         | ~20 min | ~2 min  | **10x** |
+| File Mining (100MB)    | ~2 min  | ~15 sec | **8x**  |
+| AAAK Compression (1KB) | ~200 µs | ~20 µs  | **10x** |
+| Entity Detection       | ~50 µs  | ~5 µs   | **10x** |
 
 Benchmarked on Apple Silicon M4, 16GB RAM
 
@@ -118,11 +120,11 @@ use std::time::Instant;
 fn bench_my_operation() {
     let iterations = 1000;
     let start = Instant::now();
-    
+
     for _ in 0..iterations {
         // Your operation here
     }
-    
+
     let duration = start.elapsed();
     println!("Avg time: {:?}", duration / iterations);
 }
