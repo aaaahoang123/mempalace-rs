@@ -28,9 +28,9 @@ MemPalace-RS adheres to the **2026 Gold Standards** for AI memory validation. We
 <!-- GOLD_STANDARD_START -->
 | Benchmark | Score | Metric | Latency |
 |-----------|-------|--------|---------|
-| **RULER     ** | 1.000 | nDCG       | 123.0 ms |
-| **STRUCTMEM ** | 1.000 | Structural | 34.0 ms |
-| **BABILONG  ** | 1.000 | Reasoning  | 528.0 ms |
+| **RULER     ** | 1.000 | nDCG       | 236.0 ms |
+| **STRUCTMEM ** | 1.000 | Structural | 33.0 ms |
+| **BABILONG  ** | 1.000 | Reasoning  | 531.0 ms |
 | **BEAM      ** | 1.000 | Nugget     | 23.0 ms |
 <!-- GOLD_STANDARD_END -->
 
