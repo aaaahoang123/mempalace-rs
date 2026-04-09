@@ -71,6 +71,7 @@ jobs:
         with:
           name: compiled-mempalace
           path: target/release/
+          merge-multiple: true
 
       # We still need to give execution permissions after download
       - run: chmod +x target/release/mempalace-rs
@@ -96,6 +97,7 @@ jobs:
         with:
           name: compiled-mempalace
           path: target/release/
+          merge-multiple: true
 
       - run: |
           mkdir -p models
@@ -136,12 +138,16 @@ jobs:
         with:
           name: compiled-mempalace
           path: target/release/
+          merge-multiple: true
+
+      - name: Install Rust (MacOS Native)
+        if: matrix.os == 'macos-latest'
+        uses: dtolnay/rust-toolchain@stable
 
       # Note: MacOS still needs to compile natively because cross-compiling artifacts is complex
       - name: Build MacOS (Native)
         if: matrix.os == 'macos-latest'
         run: |
-          uses: dtolnay/rust-toolchain@stable
           cargo build --release --bin mempalace-rs
           ./target/release/download-model
 
