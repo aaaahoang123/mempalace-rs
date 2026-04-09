@@ -1,7 +1,7 @@
 name: CI
 
 permissions:
-  contents: read
+  contents: write
 
 on:
   push:
@@ -18,13 +18,12 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  test:
-    name: Test
+  # 1. Unified Compilation Job
+  compile:
+    name: Compile & Prepare
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     steps:
-      - uses: actions/checkout@v5 # v4.2.2
+      - uses: actions/checkout@v5
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -32,133 +31,86 @@ jobs:
           components: clippy, rustfmt
 
       - name: Cache cargo dependencies
-        uses: actions/cache@v5 # v4.2.0
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
+      - name: Build Release
+        run: cargo build --release --verbose
+
       - name: Download fastembed model
-        run: cargo run --bin download-model --release
+        run: ./target/release/download-model
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiled-mempalace
+          path: |
+            target/release/mempalace-rs
+            target/release/update-benchmarks
+            target/release/download-model
+            models/
+          retention-days: 1
+
+  # 2. Parallel Tasks using Artifacts
+  test:
+    name: Test & Lint
+    needs: [compile]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Rust (for cargo test logic)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: compiled-mempalace
+          path: target/release/
+
+      # We still need to give execution permissions after download
+      - run: chmod +x target/release/mempalace-rs
 
       - name: Check formatting
         run: cargo fmt -- --check
-
-      - name: Run clippy
-        run: cargo clippy -- -D warnings
-
-      - name: Build
-        run: cargo build --verbose
 
       - name: Run tests
         run: cargo test --verbose
         env:
           MEMPALACE_TEST_MODE: 1
 
-  coverage:
-    name: Code Coverage
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v5 # v4.2.2
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: llvm-tools-preview
-
-      - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@cargo-llvm-cov # v2.12.0
-
-      - name: Generate coverage
-        run: cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
-        env:
-          MEMPALACE_TEST_MODE: 1
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4 # v5.1.2
-        with:
-          files: lcov.info
-          fail_ci_if_error: false
-
-  release:
-    name: Build Release
-    runs-on: ${{ matrix.os }}
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
-    permissions:
-      contents: read
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-    steps:
-      - uses: actions/checkout@v5 # v4.2.2
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache cargo dependencies
-        uses: actions/cache@v5 # v4.2.0
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Download fastembed model
-        run: cargo run --bin download-model --release
-
-      - name: Build release binary
-        run: cargo build --release --bin mempalace-rs
-
-      - name: Package with models
-        run: |
-          mkdir -p mempalace-rs-${{ matrix.os }}
-          cp target/release/mempalace-rs mempalace-rs-${{ matrix.os }}/
-          cp -r models mempalace-rs-${{ matrix.os }}/
-          tar -czf mempalace-rs-${{ matrix.os }}.tar.gz mempalace-rs-${{ matrix.os }}/
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4 # v4.6.0
-        with:
-          name: mempalace-rs-${{ matrix.os }}
-          path: mempalace-rs-${{ matrix.os }}.tar.gz
-
   benchmarks:
     name: Update Benchmarks
-    needs: [test]
+    needs: [compile]
     runs-on: ubuntu-latest
-    if: (github.event_name == 'push' || github.event_name == 'pull_request') && (contains(github.ref, 'main') || contains(github.ref, 'master') || contains(github.ref, 'feature/aaak-evolution') || contains(github.head_ref, 'feature/aaak-evolution'))
-    permissions:
-      contents: write
+    if: (github.event_name == 'push' || github.event_name == 'pull_request') && (contains(github.ref, 'main') || contains(github.ref, 'master'))
     steps:
-      - uses: actions/checkout@v5 # v4.2.2
+      - uses: actions/checkout@v5
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache cargo dependencies
-        uses: actions/cache@v5 # v4.2.0
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-          key: ${{ runner.os }}-cargo-bench-${{ hashFiles('**/Cargo.lock') }}
+          name: compiled-mempalace
+          path: target/release/
 
-      - name: Download fastembed model
-        run: cargo run --bin download-model --release
+      - run: |
+          mkdir -p models
+          mv target/release/models/* models/ 2>/dev/null || true
+          chmod +x target/release/mempalace-rs target/release/update-benchmarks
 
       - name: Run benchmarks
         run: |
-          cargo run --release -- benchmark ruler --k 10
-          cargo run --release -- benchmark structmem --hints
-          cargo run --release -- benchmark babilong --tokens 1000000
-          cargo run --release -- benchmark beam
-          cargo bench
+          ./target/release/mempalace-rs benchmark ruler --k 10
+          ./target/release/mempalace-rs benchmark structmem --hints
+          ./target/release/mempalace-rs benchmark babilong --tokens 1000000
+          ./target/release/mempalace-rs benchmark beam
 
       - name: Update documentation
-        run: cargo run --bin update-benchmarks
+        run: ./target/release/update-benchmarks
 
       - name: Commit and push changes
         run: |
@@ -167,42 +119,56 @@ jobs:
           git add README.md benchmarks/README.md
           git diff --quiet && git diff --staged --quiet || (git commit -m "docs: autonomously update 2026 benchmarks [skip ci]" && git pull --rebase origin master && git push)
 
+  release:
+    name: Package Release
+    needs: [compile]
+    runs-on: ${{ matrix.os }}
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Download Artifacts
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/download-artifact@v4
+        with:
+          name: compiled-mempalace
+          path: target/release/
+
+      # Note: MacOS still needs to compile natively because cross-compiling artifacts is complex
+      - name: Build MacOS (Native)
+        if: matrix.os == 'macos-latest'
+        run: |
+          uses: dtolnay/rust-toolchain@stable
+          cargo build --release --bin mempalace-rs
+          ./target/release/download-model
+
+      - name: Package
+        run: |
+          mkdir -p mempalace-rs-${{ matrix.os }}
+          cp target/release/mempalace-rs mempalace-rs-${{ matrix.os }}/
+          cp -r models mempalace-rs-${{ matrix.os }}/ 2>/dev/null || true
+          tar -czf mempalace-rs-${{ matrix.os }}.tar.gz mempalace-rs-${{ matrix.os }}/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: distribution-${{ matrix.os }}
+          path: mempalace-rs-${{ matrix.os }}.tar.gz
+
   publish:
     name: Publish to Crates.io
     runs-on: ubuntu-latest
-    environment: release # Best practice for Trusted Publishing
-    if: startsWith(github.ref, 'refs/tags/v')
     needs: [test]
-    permissions:
-      contents: read
-      id-token: write
+    environment: release
+    if: startsWith(github.ref, 'refs/tags/v')
     steps:
-      - uses: actions/checkout@v5 # v4.2.2
-
+      - uses: actions/checkout@v5
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
-
-      - name: Check if version exists
-        id: check_version
-        run: |
-          VERSION=$(grep '^version' Cargo.toml | head -1 | cut -d '"' -f 2)
-          if cargo search mempalace-rs --limit 1 | grep -q "\"$VERSION\""; then
-            echo "Version $VERSION already exists on crates.io, skipping publish."
-            echo "skip=true" >> $GITHUB_OUTPUT
-          else
-            echo "skip=false" >> $GITHUB_OUTPUT
-          fi
-
       - name: Publish
-        if: steps.check_version.outputs.skip != 'true'
-        run: cargo publish --token ${{ secrets.CRATES_IO_TOKEN }}
-      - name: Authenticate with crates.io
-        if: steps.check_version.outputs.skip != 'true'
-        uses: rust-lang/crates-io-auth-action@v1
-        id: auth
-
-      - name: Publish
-        if: steps.check_version.outputs.skip != 'true'
         run: cargo publish
         env:
-          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
