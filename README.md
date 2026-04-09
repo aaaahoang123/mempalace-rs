@@ -307,6 +307,19 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 MIT License - see [LICENSE](LICENSE) file.
 
+## Extended Platform Support
+
+### Android (Termux)
+
+MemPalace-RS is optimized for ARM64 mobile environments. To set up your environment in Termux:
+
+```bash
+chmod +x scripts/setup_android.sh
+./scripts/setup_android.sh
+```
+
+This will install the native `onnxruntime` and patch `ort-sys` for local compatibility.
+
 ## Acknowledgments
 
 This is a Rust port of the original [MemPalace](https://github.com/milla-jovovich/mempalace) Python project by Milla Jovovich & Ben Sigman.
