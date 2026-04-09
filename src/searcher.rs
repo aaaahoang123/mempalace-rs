@@ -25,6 +25,31 @@ impl Searcher {
         .ok()
     }
 
+    pub fn add_memory(
+        &self,
+        text: &str,
+        wing: &str,
+        room: &str,
+        source_file: Option<&str>,
+        source_mtime: Option<f64>,
+    ) -> Result<i64> {
+        let mut store = self
+            .open_vector_storage()
+            .ok_or_else(|| anyhow::anyhow!("Vector storage unavailable"))?;
+        let id = store.add_memory(text, wing, room, source_file, source_mtime)?;
+        store.save_index(self.config.config_dir.join("vectors.usearch"))?;
+        Ok(id)
+    }
+
+    pub fn delete_memory(&self, memory_id: i64) -> Result<()> {
+        let store = self
+            .open_vector_storage()
+            .ok_or_else(|| anyhow::anyhow!("Vector storage unavailable"))?;
+        store.delete_memory(memory_id)?;
+        store.save_index(self.config.config_dir.join("vectors.usearch"))?;
+        Ok(())
+    }
+
     pub async fn wake_up(&self, wing: Option<String>) -> Result<String> {
         let mut stack = MemoryStack::new(self.config.clone());
         Ok(stack.wake_up(wing).await)

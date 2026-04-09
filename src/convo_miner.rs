@@ -221,6 +221,8 @@ pub fn get_mineable_convo_files(convo_path: &Path) -> Vec<std::path::PathBuf> {
     files
 }
 
+use md5;
+
 pub fn prepare_convo_documents(
     chunks: Vec<String>,
     wing: &str,
@@ -231,13 +233,19 @@ pub fn prepare_convo_documents(
     let mut documents = Vec::new();
     let mut metadatas = Vec::new();
 
+    let mtime = fs::metadata(source_file)
+        .and_then(|m| m.modified())
+        .ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_secs_f64())
+        .unwrap_or(0.0);
+
     for (i, chunk) in chunks.into_iter().enumerate() {
         let drawer_id = format!(
-            "drawer_{}_{}_{}_{}",
+            "drawer_{}_{}_{}",
             wing,
             room,
-            hash_string(source_file),
-            i
+            hash_string(&format!("{}{}", source_file, i))
         );
         ids.push(drawer_id.clone());
         documents.push(chunk.clone());
@@ -246,6 +254,7 @@ pub fn prepare_convo_documents(
                 "wing": wing,
                 "room": room,
                 "source_file": source_file,
+                "source_mtime": mtime,
                 "chunk_index": i,
                 "filed_at": chrono::Utc::now().to_rfc3339(),
                 "ingest_mode": "convos",
@@ -308,9 +317,18 @@ pub async fn mine_convos(
     for path in files {
         let source_file = path.to_string_lossy().to_string();
 
-        // Skip if already filed
-        if vs.has_source_file(&source_file).unwrap_or(false) {
-            continue;
+        // Fast check: mtime
+        let current_mtime = fs::metadata(&path)
+            .and_then(|m| m.modified())
+            .ok()
+            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+            .map(|d| d.as_secs_f64())
+            .unwrap_or(0.0);
+
+        if let Some(stored_mtime) = vs.get_source_mtime(&source_file)? {
+            if (stored_mtime - current_mtime).abs() < 0.001 {
+                continue;
+            }
         }
 
         if let Ok(content) = fs::read_to_string(&path) {
@@ -319,7 +337,13 @@ pub async fn mine_convos(
             {
                 let count = documents.len();
                 for doc in &documents {
-                    vs.add_memory(doc, &wing, "convos", Some(&source_file), None)?;
+                    vs.add_memory(
+                        doc,
+                        &wing,
+                        "convos",
+                        Some(&source_file),
+                        Some(current_mtime),
+                    )?;
                 }
                 println!(
                     "  ✓ Filed {} drawers from {}",
@@ -335,11 +359,8 @@ pub async fn mine_convos(
 }
 
 fn hash_string(s: &str) -> String {
-    use std::collections::hash_map::DefaultHasher;
-    use std::hash::{Hash, Hasher};
-    let mut hasher = DefaultHasher::new();
-    s.hash(&mut hasher);
-    format!("{:x}", hasher.finish())
+    let digest = md5::compute(s);
+    format!("{:x}", digest)
 }
 
 #[cfg(test)]

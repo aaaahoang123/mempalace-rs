@@ -15,13 +15,14 @@ use mempalace_rs::vector_storage::VectorStorage;
 #[derive(Parser)]
 #[command(
     name = "mempalace",
-    about = "Give your AI a memory. No API key required."
+    version = env!("CARGO_PKG_VERSION"),
+    about = "MemPalace — High-performance, offline-first AI memory system. No API key required."
 )]
 struct Cli {
     #[arg(
         short,
         long,
-        help = "Where the palace lives (default: from ~/.mempalace/config.json or ~/.mempalace/palace)"
+        help = "Path to the palace storage (SQLite .db file or directory containing palace.db)"
     )]
     palace: Option<String>,
 
@@ -58,7 +59,7 @@ enum Commands {
         wing: Option<String>,
         #[arg(short, long, help = "Filter by room")]
         room: Option<String>,
-        #[arg(short, long, help = "Number of results", default_value_t = 5)]
+        #[arg(short = 'n', long, help = "Number of results", default_value_t = 5)]
         results: usize,
     },
     #[command(

@@ -320,6 +320,10 @@ chmod +x scripts/setup_android.sh
 
 This will install the native `onnxruntime` and patch `ort-sys` for local compatibility.
 
+## Parity with Python Original
+
+This project is a 100% functional port of the original Python `mempalace` implementation. For a detailed breakdown of feature parity, compatibility status, and Rust-exclusive enhancements, see the [Full Parity Report](docs/parity_report.md).
+
 ## Acknowledgments
 
 This is a Rust port of the original [MemPalace](https://github.com/milla-jovovich/mempalace) Python project by Milla Jovovich & Ben Sigman.

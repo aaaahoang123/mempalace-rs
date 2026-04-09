@@ -176,20 +176,23 @@ impl MempalaceConfig {
         if config_file.exists() {
             if let Ok(content) = fs::read_to_string(config_file) {
                 if let Ok(file_config) = serde_json::from_str::<serde_json::Value>(&content) {
-                    if let Some(path) = file_config["palace_path"].as_str() {
+                    if let Some(path) = file_config.get("palace_path").and_then(|v| v.as_str()) {
                         self.palace_path = path.to_string();
                     }
-                    if let Some(name) = file_config["collection_name"].as_str() {
+                    if let Some(name) = file_config.get("collection_name").and_then(|v| v.as_str())
+                    {
                         self.collection_name = name.to_string();
                     }
-                    if let Some(wings) = file_config["topic_wings"].as_array() {
+                    if let Some(wings) = file_config.get("topic_wings").and_then(|v| v.as_array()) {
                         self.topic_wings = wings
                             .iter()
                             .filter_map(|v| v.as_str())
                             .map(|s| s.to_string())
                             .collect();
                     }
-                    if let Some(keywords) = file_config["hall_keywords"].as_object() {
+                    if let Some(keywords) =
+                        file_config.get("hall_keywords").and_then(|v| v.as_object())
+                    {
                         for (k, v) in keywords {
                             if let Some(words) = v.as_array() {
                                 let words_vec: Vec<String> = words
@@ -201,6 +204,17 @@ impl MempalaceConfig {
                             }
                         }
                     }
+                    if let Some(p_map) = file_config.get("people_map").and_then(|v| v.as_object()) {
+                        for (k, v) in p_map {
+                            if let Some(name) = v.as_str() {
+                                self.people_map.insert(k.clone(), name.to_string());
+                            }
+                        }
+                    }
+                    if let Some(e_path) = file_config.get("emotions_path").and_then(|v| v.as_str())
+                    {
+                        self.emotions_path = Some(PathBuf::from(e_path));
+                    }
                 }
             }
         }
@@ -211,7 +225,7 @@ impl MempalaceConfig {
         if people_map_file.exists() {
             if let Ok(content) = fs::read_to_string(people_map_file) {
                 if let Ok(map) = serde_json::from_str::<HashMap<String, String>>(&content) {
-                    self.people_map = map;
+                    self.people_map.extend(map);
                 }
             }
         }
@@ -254,16 +268,8 @@ impl MempalaceConfig {
         fs::create_dir_all(&self.config_dir)?;
         let config_file = self.config_dir.join("config.json");
         if !config_file.exists() {
-            let default_config = serde_json::json!({
-                "palace_path": self.palace_path,
-                "collection_name": self.collection_name,
-                "topic_wings": self.topic_wings,
-                "hall_keywords": self.hall_keywords,
-            });
-            fs::write(
-                &config_file,
-                serde_json::to_string_pretty(&default_config).unwrap(),
-            )?;
+            let config_json = serde_json::to_string_pretty(self).unwrap();
+            fs::write(&config_file, config_json)?;
         }
         Ok(config_file)
     }

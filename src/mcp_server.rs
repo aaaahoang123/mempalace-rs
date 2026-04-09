@@ -404,20 +404,19 @@ impl McpServer {
     }
 
     pub(crate) async fn mempalace_status(&self) -> Result<Value> {
-        let count = VectorStorage::new(
+        let vs = VectorStorage::new(
             self.config.config_dir.join("vectors.db"),
             self.config.config_dir.join("vectors.usearch"),
-        )
-        .ok()
-        .and_then(|vs| vs.memory_count().ok())
-        .unwrap_or(0);
+        )?;
+        let count = vs.memory_count().unwrap_or(0);
 
         Ok(json!({
             "total_memories": count,
             "wings": self.pg.wings.len(),
             "rooms": self.pg.rooms.len(),
             "protocol": "mempalace-mcp-v1",
-            "aaak_spec": "3.1-pro"
+            "aaak_spec": "3.1-pro",
+            "storage_engine": "pure-rust-usearch"
         }))
     }
 
@@ -439,10 +438,14 @@ impl McpServer {
 
     pub(crate) async fn mempalace_get_taxonomy(&self) -> Result<Value> {
         let mut taxonomy = HashMap::new();
-        for (wing, rooms) in &self.pg.wings {
+        let max_wings = 100; // Hard limit for safety
+        for (i, (wing, rooms)) in self.pg.wings.iter().enumerate() {
+            if i >= max_wings {
+                break;
+            }
             let mut room_counts = HashMap::new();
             for room in rooms {
-                room_counts.insert(room.clone(), 0); // Count not easily available without full scan
+                room_counts.insert(room.clone(), 0);
             }
             taxonomy.insert(wing.clone(), room_counts);
         }
@@ -543,12 +546,7 @@ impl McpServer {
         let wing = args["wing"].as_str().unwrap_or("general");
         let room = args["room"].as_str().unwrap_or("general");
 
-        let mut vs = VectorStorage::new(
-            self.config.config_dir.join("vectors.db"),
-            self.config.config_dir.join("vectors.usearch"),
-        )?;
-
-        let memory_id = vs.add_memory(content, wing, room, None, None)?;
+        let memory_id = self.searcher.add_memory(content, wing, room, None, None)?;
         self.pg.add_room(room, wing);
 
         Ok(json!({ "status": "success", "memory_id": memory_id, "wing": wing, "room": room }))
@@ -559,11 +557,7 @@ impl McpServer {
             .as_i64()
             .ok_or_else(|| anyhow!("Missing or invalid memory_id (integer)"))?;
 
-        let vs = VectorStorage::new(
-            self.config.config_dir.join("vectors.db"),
-            self.config.config_dir.join("vectors.usearch"),
-        )?;
-        vs.delete_memory(memory_id)?;
+        self.searcher.delete_memory(memory_id)?;
 
         Ok(json!({ "status": "success", "memory_id": memory_id }))
     }

@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Implemented `instructions` command for AI agent system-prompt onboarding.
   - Added interactive entity confirmation in `mempalace init` using `dialoguer`.
   - Ported emotional-marker and speech-pattern regex parsing to `src/extractor.rs`.
+- **Sync with Latest Upstream (April 2026)**:
+  - **Deterministic MD5 IDs**: Replaced unstable `DefaultHasher` with stable MD5 hashing for `drawer_id` to ensure idempotent writes.
+  - **Mtime-Based Mining Skip**: Implemented file modification time tracking to skip unchanged files during re-mining (significant performance boost).
+  - **MCP Server Hardening**: Bounded metadata scans in `mempalace_status` and `mempalace_get_taxonomy` to prevent OOM on massive palaces.
 - **Advanced CLI Features**:
   - Enhanced `mine` with `--limit`, `--dry-run`, and `--agent` overrides.
   - Enhanced `search` with `--wing`, `--room`, and `--results` filters.

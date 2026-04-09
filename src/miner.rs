@@ -167,6 +167,8 @@ pub fn get_mineable_files(project_path: &Path, no_gitignore: bool) -> Vec<std::p
     files
 }
 
+use md5;
+
 pub fn prepare_documents(
     chunks: Vec<String>,
     wing_name: &str,
@@ -181,13 +183,19 @@ pub fn prepare_documents(
     let mut documents = Vec::new();
     let mut metadatas = Vec::new();
 
+    let mtime = fs::metadata(source_file)
+        .and_then(|m| m.modified())
+        .ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_secs_f64())
+        .unwrap_or(0.0);
+
     for (i, chunk) in chunks.into_iter().enumerate() {
         let drawer_id = format!(
-            "drawer_{}_{}_{}_{}",
+            "drawer_{}_{}_{}",
             wing_name,
             room,
-            hash_string(source_file),
-            i
+            hash_string(&format!("{}{}", source_file, i))
         );
         ids.push(drawer_id);
         documents.push(chunk);
@@ -196,6 +204,7 @@ pub fn prepare_documents(
                 "wing": wing_name,
                 "room": room,
                 "source_file": source_file,
+                "source_mtime": mtime,
                 "chunk_index": i,
                 "filed_at": chrono::Utc::now().to_rfc3339(),
             })
@@ -298,9 +307,21 @@ pub async fn mine_project(
         }
         let source_file = path.to_string_lossy().to_string();
 
-        // Skip if already filed
-        if vs.has_source_file(&source_file).unwrap_or(false) {
-            continue;
+        // Fast check: mtime
+        let current_mtime = fs::metadata(&path)
+            .and_then(|m| m.modified())
+            .ok()
+            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+            .map(|d| d.as_secs_f64())
+            .unwrap_or(0.0);
+
+        if !options.dry_run {
+            if let Some(stored_mtime) = vs.get_source_mtime(&source_file)? {
+                if (stored_mtime - current_mtime).abs() < 0.001 {
+                    processed_files += 1;
+                    continue;
+                }
+            }
         }
 
         if let Ok(content) = fs::read_to_string(&path) {
@@ -318,7 +339,13 @@ pub async fn mine_project(
                         meta.insert("author".to_string(), json!(agent_name));
                     }
                     if !options.dry_run {
-                        vs.add_memory(doc, &wing_name, &room, Some(&source_file), None)?;
+                        vs.add_memory(
+                            doc,
+                            &wing_name,
+                            &room,
+                            Some(&source_file),
+                            Some(current_mtime),
+                        )?;
                     }
                     count += 1;
                 }
@@ -346,11 +373,8 @@ pub async fn mine_project(
 }
 
 fn hash_string(s: &str) -> String {
-    use std::collections::hash_map::DefaultHasher;
-    use std::hash::{Hash, Hasher};
-    let mut hasher = DefaultHasher::new();
-    s.hash(&mut hasher);
-    format!("{:x}", hasher.finish())
+    let digest = md5::compute(s);
+    format!("{:x}", digest)
 }
 
 #[cfg(test)]

@@ -11,7 +11,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{anyhow, Context, Result};
 use fastembed::{EmbeddingModel, InitOptions, TextEmbedding};
-use rusqlite::{params, Connection};
+use rusqlite::{params, Connection, OptionalExtension};
 use std::path::PathBuf;
 use usearch::{Index, IndexOptions, MetricKind, ScalarKind};
 
@@ -118,6 +118,7 @@ impl VectorStorage {
                 wing TEXT NOT NULL,
                 room TEXT NOT NULL,
                 source_file TEXT,
+                source_mtime REAL,
                 valid_from INTEGER NOT NULL,
                 valid_to INTEGER,
                 last_accessed INTEGER DEFAULT 0,
@@ -143,12 +144,15 @@ impl VectorStorage {
         {
             let mut check_stmt = db.prepare("PRAGMA table_info(memories)")?;
             let mut has_accessed = false;
+            let mut has_mtime = false;
             let mut rows = check_stmt.query([])?;
             while let Some(row) = rows.next()? {
                 let name: String = row.get(1)?;
                 if name == "last_accessed" {
                     has_accessed = true;
-                    break;
+                }
+                if name == "source_mtime" {
+                    has_mtime = true;
                 }
             }
             if !has_accessed {
@@ -159,6 +163,9 @@ impl VectorStorage {
                 )?;
                 let now = now_unix();
                 db.execute("UPDATE memories SET last_accessed = ?1", params![now])?;
+            }
+            if !has_mtime {
+                db.execute_batch("ALTER TABLE memories ADD COLUMN source_mtime REAL;")?;
             }
         }
 
@@ -190,18 +197,15 @@ impl VectorStorage {
         wing: &str,
         room: &str,
         source_file: Option<&str>,
-        temporal: Option<TemporalRange>,
+        source_mtime: Option<f64>,
     ) -> Result<i64> {
         let vector = self.embed_single(text)?;
-        let (valid_from, valid_to) = match temporal {
-            Some(t) => (t.valid_from.unwrap_or_else(now_unix), t.valid_to),
-            None => (now_unix(), None),
-        };
+        let valid_from = now_unix();
 
         self.db.execute(
-            "INSERT INTO memories (text_content, wing, room, source_file, valid_from, valid_to, last_accessed, access_count, importance_score)
+            "INSERT INTO memories (text_content, wing, room, source_file, source_mtime, valid_from, last_accessed, access_count, importance_score)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 0, 5.0)",
-            params![text, wing, room, source_file, valid_from, valid_to, valid_from],
+            params![text, wing, room, source_file, source_mtime, valid_from, valid_from],
         )?;
 
         let row_id = self.db.last_insert_rowid();
@@ -219,6 +223,16 @@ impl VectorStorage {
             .map_err(|e| anyhow!("usearch add failed: {e}"))?;
 
         Ok(row_id)
+    }
+
+    pub fn get_source_mtime(&self, source_file: &str) -> Result<Option<f64>> {
+        let mut stmt = self.db.prepare(
+            "SELECT source_mtime FROM memories WHERE source_file = ?1 ORDER BY id DESC LIMIT 1",
+        )?;
+        let mtime = stmt
+            .query_row(params![source_file], |row| row.get::<_, Option<f64>>(0))
+            .optional()?;
+        Ok(mtime.flatten())
     }
 
     pub fn search_room(
