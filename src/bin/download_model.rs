@@ -22,9 +22,15 @@ fn main() {
             }
             Err(e) => {
                 if attempts >= max_attempts {
-                    panic!("Failed to download model after {} attempts: {}", max_attempts, e);
+                    panic!(
+                        "Failed to download model after {} attempts: {}",
+                        max_attempts, e
+                    );
                 }
-                println!("Attempt {} failed: {}. Retrying in {:?}...", attempts, e, delay);
+                println!(
+                    "Attempt {} failed: {}. Retrying in {:?}...",
+                    attempts, e, delay
+                );
                 thread::sleep(delay);
                 delay *= 2;
             }
