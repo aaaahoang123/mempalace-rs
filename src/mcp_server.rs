@@ -126,6 +126,9 @@ impl McpServer {
             "initialize" => self.handle_initialize(req.params),
             "tools/list" => self.handle_tools_list(),
             "tools/call" => self.handle_tools_call(req.params).await,
+            "resources/list" => Ok(json!({ "resources": [] })),
+            "resources/read" => Err(anyhow!("Resource not found")),
+            "prompts/list" => Ok(json!({ "prompts": [] })),
             // Silently return empty object for unknown but non-notification methods
             _ => Ok(json!({})),
         };
@@ -155,12 +158,6 @@ impl McpServer {
             "protocolVersion": "2024-11-05",
             "capabilities": {
                 "tools": {
-                    "listChanged": true
-                },
-                "resources": {
-                    "subscribe": true
-                },
-                "prompts": {
                     "listChanged": true
                 }
             },
@@ -378,7 +375,7 @@ impl McpServer {
             .ok_or_else(|| anyhow!("Missing tool name"))?;
         let args = &params["arguments"];
 
-        match name {
+        let tool_result = match name {
             "mempalace_status" => self.mempalace_status().await,
             "mempalace_list_wings" => self.mempalace_list_wings().await,
             "mempalace_list_rooms" => self.mempalace_list_rooms(args).await,
@@ -400,7 +397,15 @@ impl McpServer {
             "mempalace_diary_read" => self.mempalace_diary_read(args).await,
             "mempalace_prune" => self.mempalace_prune(args).await,
             _ => Err(anyhow!("Unknown tool: {}", name)),
-        }
+        }?;
+
+        // Wrap in MCP-compliant content format
+        Ok(json!({
+            "content": [{
+                "type": "text",
+                "text": serde_json::to_string(&tool_result)?
+            }]
+        }))
     }
 
     pub(crate) async fn mempalace_status(&self) -> Result<Value> {
@@ -684,6 +689,334 @@ mod tests {
         (config, temp_dir)
     }
 
+    fn make_request(method: &str, params: Option<Value>, id: Option<Value>) -> JsonRpcRequest {
+        JsonRpcRequest {
+            jsonrpc: "2.0".to_string(),
+            method: method.to_string(),
+            params,
+            id,
+        }
+    }
+
+    // ── Protocol-level tests ─────────────────────────────────────────
+
+    #[tokio::test]
+    async fn test_handle_request_initialize() {
+        let (config, _td) = setup_test();
+        let mut server = McpServer::new_test(config);
+        let req = make_request("initialize", None, Some(json!(1)));
+        let resp = server.handle_request(req).await;
+
+        assert!(resp.error.is_none());
+        let res = resp.result.unwrap();
+        assert_eq!(res["protocolVersion"], "2024-11-05");
+        assert_eq!(res["serverInfo"]["name"], "mempalace-rs");
+        assert!(res["capabilities"]["tools"].is_object());
+        // resources and prompts should NOT be advertised
+        assert!(res["capabilities"]["resources"].is_null());
+        assert!(res["capabilities"]["prompts"].is_null());
+    }
+
+    #[tokio::test]
+    async fn test_handle_request_tools_list() {
+        let (config, _td) = setup_test();
+        let mut server = McpServer::new_test(config);
+        let req = make_request("tools/list", None, Some(json!(2)));
+        let resp = server.handle_request(req).await;
+
+        assert!(resp.error.is_none());
+        let res = resp.result.unwrap();
+        let tools = res["tools"].as_array().unwrap();
+        assert!(tools.len() >= 20, "Expected at least 20 tools, got {}", tools.len());
+    }
+
+    #[tokio::test]
+    async fn test_handle_request_tools_call_content_wrapper() {
+        let (config, _td) = setup_test();
+        let mut server = McpServer::new_test(config);
+        let req = make_request(
+            "tools/call",
+            Some(json!({ "name": "mempalace_status", "arguments": {} })),
+            Some(json!(3)),
+        );
+        let resp = server.handle_request(req).await;
+
+        assert!(resp.error.is_none());
+        let res = resp.result.unwrap();
+        // Must have MCP-compliant content wrapper
+        let content = res["content"].as_array().expect("missing content array");
+        assert!(!content.is_empty());
+        assert_eq!(content[0]["type"], "text");
+        // text field must be valid JSON
+        let inner: Value =
+            serde_json::from_str(content[0]["text"].as_str().unwrap()).expect("text not valid JSON");
+        assert!(inner["total_memories"].is_number());
+        assert!(inner["protocol"].is_string());
+    }
+
+    #[tokio::test]
+    async fn test_handle_request_resources_list() {
+        let (config, _td) = setup_test();
+        let mut server = McpServer::new_test(config);
+        let req = make_request("resources/list", None, Some(json!(4)));
+        let resp = server.handle_request(req).await;
+
+        assert!(resp.error.is_none());
+        let res = resp.result.unwrap();
+        assert_eq!(res["resources"].as_array().unwrap().len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_handle_request_resources_read_error() {
+        let (config, _td) = setup_test();
+        let mut server = McpServer::new_test(config);
+        let req = make_request("resources/read", None, Some(json!(5)));
+        let resp = server.handle_request(req).await;
+
+        assert!(resp.error.is_some());
+        assert!(resp.error.unwrap().message.contains("Resource not found"));
+    }
+
+    #[tokio::test]
+    async fn test_handle_request_prompts_list() {
+        let (config, _td) = setup_test();
+        let mut server = McpServer::new_test(config);
+        let req = make_request("prompts/list", None, Some(json!(6)));
+        let resp = server.handle_request(req).await;
+
+        assert!(resp.error.is_none());
+        let res = resp.result.unwrap();
+        assert_eq!(res["prompts"].as_array().unwrap().len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_handle_request_unknown_method() {
+        let (config, _td) = setup_test();
+        let mut server = McpServer::new_test(config);
+        let req = make_request("nonexistent/method", None, Some(json!(7)));
+        let resp = server.handle_request(req).await;
+
+        assert!(resp.error.is_none());
+        let res = resp.result.unwrap();
+        assert!(res.is_object());
+    }
+
+    #[tokio::test]
+    async fn test_handle_request_preserves_id() {
+        let (config, _td) = setup_test();
+        let mut server = McpServer::new_test(config);
+        let req = make_request("initialize", None, Some(json!("my-string-id")));
+        let resp = server.handle_request(req).await;
+        assert_eq!(resp.id, Some(json!("my-string-id")));
+    }
+
+    #[tokio::test]
+    async fn test_handle_request_jsonrpc_version() {
+        let (config, _td) = setup_test();
+        let mut server = McpServer::new_test(config);
+        let req = make_request("initialize", None, Some(json!(1)));
+        let resp = server.handle_request(req).await;
+        assert_eq!(resp.jsonrpc, "2.0");
+    }
+
+    // ── Tool schema validation ───────────────────────────────────────
+
+    #[tokio::test]
+    async fn test_tools_list_schema_completeness() {
+        let (config, _td) = setup_test();
+        let server = McpServer::new_test(config);
+        let res = server.handle_tools_list().unwrap();
+        let tools = res["tools"].as_array().unwrap();
+
+        for tool in tools {
+            let name = tool["name"].as_str().expect("tool missing name");
+            assert!(
+                tool["description"].as_str().is_some(),
+                "tool {} missing description",
+                name
+            );
+            assert!(
+                tool["inputSchema"].is_object(),
+                "tool {} missing inputSchema",
+                name
+            );
+            assert_eq!(
+                tool["inputSchema"]["type"], "object",
+                "tool {} inputSchema.type must be 'object'",
+                name
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn test_tools_list_expected_names() {
+        let (config, _td) = setup_test();
+        let server = McpServer::new_test(config);
+        let res = server.handle_tools_list().unwrap();
+        let tools = res["tools"].as_array().unwrap();
+        let names: Vec<&str> = tools.iter().map(|t| t["name"].as_str().unwrap()).collect();
+
+        let expected = [
+            "mempalace_status",
+            "mempalace_list_wings",
+            "mempalace_list_rooms",
+            "mempalace_get_taxonomy",
+            "mempalace_search",
+            "mempalace_check_duplicate",
+            "mempalace_get_aaak_spec",
+            "mempalace_traverse_graph",
+            "mempalace_find_tunnels",
+            "mempalace_graph_stats",
+            "mempalace_add_drawer",
+            "mempalace_delete_drawer",
+            "mempalace_kg_query",
+            "mempalace_kg_add",
+            "mempalace_kg_invalidate",
+            "mempalace_kg_timeline",
+            "mempalace_kg_stats",
+            "mempalace_diary_write",
+            "mempalace_diary_read",
+            "mempalace_prune",
+        ];
+        for name in &expected {
+            assert!(names.contains(name), "missing tool: {}", name);
+        }
+    }
+
+    // ── Error / edge-case tests ──────────────────────────────────────
+
+    #[tokio::test]
+    async fn test_tools_call_missing_params() {
+        let (config, _td) = setup_test();
+        let mut server = McpServer::new_test(config);
+        let req = make_request("tools/call", None, Some(json!(10)));
+        let resp = server.handle_request(req).await;
+        assert!(resp.error.is_some(), "expected error for missing params");
+    }
+
+    #[tokio::test]
+    async fn test_tools_call_missing_tool_name() {
+        let (config, _td) = setup_test();
+        let mut server = McpServer::new_test(config);
+        let req = make_request(
+            "tools/call",
+            Some(json!({ "arguments": {} })),
+            Some(json!(11)),
+        );
+        let resp = server.handle_request(req).await;
+        assert!(resp.error.is_some(), "expected error for missing tool name");
+    }
+
+    #[tokio::test]
+    async fn test_tools_call_unknown_tool() {
+        let (config, _td) = setup_test();
+        let mut server = McpServer::new_test(config);
+        let req = make_request(
+            "tools/call",
+            Some(json!({ "name": "nonexistent_tool", "arguments": {} })),
+            Some(json!(12)),
+        );
+        let resp = server.handle_request(req).await;
+        assert!(resp.error.is_some());
+        assert!(resp.error.unwrap().message.contains("Unknown tool"));
+    }
+
+    #[tokio::test]
+    async fn test_list_rooms_missing_wing() {
+        let (config, _td) = setup_test();
+        let server = McpServer::new_test(config);
+        let res = server.mempalace_list_rooms(&json!({})).await;
+        assert!(res.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_kg_add_missing_fields() {
+        let (config, _td) = setup_test();
+        let server = McpServer::new_test(config);
+
+        // missing subject
+        assert!(server.mempalace_kg_add(&json!({"predicate": "is", "object": "x"})).await.is_err());
+        // missing predicate
+        assert!(server.mempalace_kg_add(&json!({"subject": "x", "object": "y"})).await.is_err());
+        // missing object
+        assert!(server.mempalace_kg_add(&json!({"subject": "x", "predicate": "is"})).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_delete_drawer_invalid_id() {
+        let (config, _td) = setup_test();
+        let server = McpServer::new_test(config);
+        // string instead of integer
+        let res = server.mempalace_delete_drawer(&json!({"memory_id": "bad"})).await;
+        assert!(res.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_search_missing_query() {
+        let (config, _td) = setup_test();
+        let server = McpServer::new_test(config);
+        let res = server.mempalace_search(&json!({})).await;
+        assert!(res.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_check_duplicate_missing_text() {
+        let (config, _td) = setup_test();
+        let server = McpServer::new_test(config);
+        let res = server.mempalace_check_duplicate(&json!({})).await;
+        assert!(res.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_traverse_graph_missing_start_room() {
+        let (config, _td) = setup_test();
+        let server = McpServer::new_test(config);
+        let res = server.mempalace_traverse_graph(&json!({})).await;
+        assert!(res.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_kg_query_missing_entity() {
+        let (config, _td) = setup_test();
+        let server = McpServer::new_test(config);
+        let res = server.mempalace_kg_query(&json!({})).await;
+        assert!(res.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_kg_timeline_missing_entity() {
+        let (config, _td) = setup_test();
+        let server = McpServer::new_test(config);
+        let res = server.mempalace_kg_timeline(&json!({})).await;
+        assert!(res.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_diary_write_missing_agent() {
+        let (config, _td) = setup_test();
+        let server = McpServer::new_test(config);
+        let res = server.mempalace_diary_write(&json!({"content": "hello"})).await;
+        assert!(res.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_diary_write_missing_content() {
+        let (config, _td) = setup_test();
+        let server = McpServer::new_test(config);
+        let res = server.mempalace_diary_write(&json!({"agent": "test"})).await;
+        assert!(res.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_diary_read_missing_agent() {
+        let (config, _td) = setup_test();
+        let server = McpServer::new_test(config);
+        let res = server.mempalace_diary_read(&json!({})).await;
+        assert!(res.is_err());
+    }
+
+    // ── Individual tool tests ────────────────────────────────────────
+
     #[tokio::test]
     async fn test_mcp_initialize() {
         let (config, _td) = setup_test();
@@ -702,7 +1035,18 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_mcp_mempalace_list_wings() {
+    async fn test_mempalace_status() {
+        let (config, _td) = setup_test();
+        let server = McpServer::new_test(config);
+        let res = server.mempalace_status().await.unwrap();
+        assert!(res["total_memories"].is_number());
+        assert_eq!(res["protocol"], "mempalace-mcp-v1");
+        assert_eq!(res["storage_engine"], "pure-rust-usearch");
+        assert!(res["aaak_spec"].is_string());
+    }
+
+    #[tokio::test]
+    async fn test_mempalace_list_wings() {
         let (config, _td) = setup_test();
         let mut server = McpServer::new_test(config);
         server.pg.add_room("room1", "wing1");
@@ -712,29 +1056,58 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_mcp_mempalace_list_rooms() {
+    async fn test_mempalace_list_wings_empty() {
+        let (config, _td) = setup_test();
+        let server = McpServer::new_test(config);
+        let res = server.mempalace_list_wings().await.unwrap();
+        assert_eq!(res["wings"].as_object().unwrap().len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_mempalace_list_rooms() {
         let (config, _td) = setup_test();
         let mut server = McpServer::new_test(config);
         server.pg.add_room("room1", "wing1");
+        server.pg.add_room("room2", "wing1");
 
         let args = json!({ "wing": "wing1" });
         let res = server.mempalace_list_rooms(&args).await.unwrap();
         let rooms = res["rooms"].as_array().unwrap();
-        assert_eq!(rooms[0], "room1");
+        assert_eq!(rooms.len(), 2);
+        assert_eq!(res["wing"], "wing1");
     }
 
     #[tokio::test]
-    async fn test_mcp_mempalace_get_taxonomy() {
+    async fn test_mempalace_list_rooms_nonexistent_wing() {
+        let (config, _td) = setup_test();
+        let server = McpServer::new_test(config);
+        let args = json!({ "wing": "no_such_wing" });
+        let res = server.mempalace_list_rooms(&args).await.unwrap();
+        assert_eq!(res["rooms"].as_array().unwrap().len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_mempalace_get_taxonomy() {
         let (config, _td) = setup_test();
         let mut server = McpServer::new_test(config);
         server.pg.add_room("room1", "wing1");
+        server.pg.add_room("room2", "wing2");
 
         let res = server.mempalace_get_taxonomy().await.unwrap();
         assert!(res["taxonomy"]["wing1"].is_object());
+        assert!(res["taxonomy"]["wing2"].is_object());
     }
 
     #[tokio::test]
-    async fn test_mcp_mempalace_graph_stats() {
+    async fn test_mempalace_get_taxonomy_empty() {
+        let (config, _td) = setup_test();
+        let server = McpServer::new_test(config);
+        let res = server.mempalace_get_taxonomy().await.unwrap();
+        assert_eq!(res["taxonomy"].as_object().unwrap().len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_mempalace_graph_stats() {
         let (config, _td) = setup_test();
         let mut server = McpServer::new_test(config);
         server.pg.add_room("room1", "wing1");
@@ -742,18 +1115,292 @@ mod tests {
         let res = server.mempalace_graph_stats().await.unwrap();
         assert_eq!(res["total_rooms"], 1);
         assert_eq!(res["total_wings"], 1);
+        assert!(res["avg_rooms_per_wing"].as_f64().unwrap() > 0.0);
     }
 
     #[tokio::test]
-    async fn test_mcp_mempalace_get_aaak_spec() {
+    async fn test_mempalace_graph_stats_empty() {
+        let (config, _td) = setup_test();
+        let server = McpServer::new_test(config);
+        let res = server.mempalace_graph_stats().await.unwrap();
+        assert_eq!(res["total_rooms"], 0);
+        assert_eq!(res["total_wings"], 0);
+        assert_eq!(res["avg_rooms_per_wing"], 0.0);
+    }
+
+    #[tokio::test]
+    async fn test_mempalace_get_aaak_spec() {
         let (config, _td) = setup_test();
         let server = McpServer::new_test(config);
         let res = server.mempalace_get_aaak_spec().await.unwrap();
         assert!(res["spec"].as_str().unwrap().contains("AAAK Dialect"));
+        assert!(res["version"].is_string());
+        assert_eq!(res["compression_ratio"], "~30x");
+        assert!(res["layers"].as_array().unwrap().len() == 4);
+        assert!(res["features"].as_array().unwrap().len() > 0);
     }
 
     #[tokio::test]
-    async fn test_mcp_mempalace_diary_ops() {
+    async fn test_mempalace_search_empty_palace() {
+        let (config, _td) = setup_test();
+        let server = McpServer::new_test(config);
+        let args = json!({ "query": "hello world" });
+        let res = server.mempalace_search(&args).await.unwrap();
+        assert!(res["results"].is_array());
+    }
+
+    #[tokio::test]
+    async fn test_mempalace_search_with_filters() {
+        let (config, _td) = setup_test();
+        let server = McpServer::new_test(config);
+        let args = json!({ "query": "test", "wing": "tech", "room": "code", "n_results": 3 });
+        let res = server.mempalace_search(&args).await.unwrap();
+        assert!(res["results"].is_array());
+    }
+
+    #[tokio::test]
+    async fn test_mempalace_check_duplicate_empty_palace() {
+        let (config, _td) = setup_test();
+        let server = McpServer::new_test(config);
+        let args = json!({ "text": "something unique", "threshold": 0.95 });
+        let res = server.mempalace_check_duplicate(&args).await.unwrap();
+        assert_eq!(res["is_duplicate"], false);
+        assert!(res["threshold"].as_f64().unwrap() > 0.0);
+    }
+
+    #[tokio::test]
+    async fn test_mempalace_traverse_graph() {
+        let (config, _td) = setup_test();
+        let mut server = McpServer::new_test(config);
+        server.pg.add_room("room1", "wing1");
+
+        let args = json!({ "start_room": "room1", "max_hops": 2 });
+        let res = server.mempalace_traverse_graph(&args).await.unwrap();
+        assert_eq!(res["start_room"], "room1");
+        assert!(res["connected"].is_array());
+    }
+
+    #[tokio::test]
+    async fn test_mempalace_traverse_graph_default_hops() {
+        let (config, _td) = setup_test();
+        let server = McpServer::new_test(config);
+        let args = json!({ "start_room": "unknown_room" });
+        let res = server.mempalace_traverse_graph(&args).await.unwrap();
+        assert_eq!(res["start_room"], "unknown_room");
+    }
+
+    #[tokio::test]
+    async fn test_mempalace_find_tunnels() {
+        let (config, _td) = setup_test();
+        let server = McpServer::new_test(config);
+        let res = server.mempalace_find_tunnels().await.unwrap();
+        assert!(res["tunnels"].is_array());
+    }
+
+    #[tokio::test]
+    async fn test_mempalace_add_drawer() {
+        let (config, _td) = setup_test();
+        let mut server = McpServer::new_test(config);
+        let args = json!({ "content": "test memory content", "wing": "tech", "room": "rust" });
+        let res = server.mempalace_add_drawer(&args).await.unwrap();
+        assert_eq!(res["status"], "success");
+        assert!(res["memory_id"].is_number());
+        assert_eq!(res["wing"], "tech");
+        assert_eq!(res["room"], "rust");
+    }
+
+    #[tokio::test]
+    async fn test_mempalace_add_drawer_defaults() {
+        let (config, _td) = setup_test();
+        let mut server = McpServer::new_test(config);
+        let args = json!({ "content": "test memory" });
+        let res = server.mempalace_add_drawer(&args).await.unwrap();
+        assert_eq!(res["status"], "success");
+        assert_eq!(res["wing"], "general");
+        assert_eq!(res["room"], "general");
+    }
+
+    #[tokio::test]
+    async fn test_mempalace_add_and_delete_drawer() {
+        let (config, _td) = setup_test();
+        let mut server = McpServer::new_test(config);
+
+        // Add
+        let add_args = json!({ "content": "ephemeral memory" });
+        let add_res = server.mempalace_add_drawer(&add_args).await.unwrap();
+        let memory_id = add_res["memory_id"].as_i64().unwrap();
+
+        // Delete
+        let del_args = json!({ "memory_id": memory_id });
+        let del_res = server.mempalace_delete_drawer(&del_args).await.unwrap();
+        assert_eq!(del_res["status"], "success");
+        assert_eq!(del_res["memory_id"], memory_id);
+    }
+
+    // ── Knowledge Graph tests ────────────────────────────────────────
+
+    #[tokio::test]
+    async fn test_mempalace_kg_add() {
+        let (config, _td) = setup_test();
+        let server = McpServer::new_test(config);
+        let args = json!({ "subject": "Rust", "predicate": "is_a", "object": "language" });
+        let res = server.mempalace_kg_add(&args).await.unwrap();
+        assert_eq!(res["status"], "success");
+        assert!(res["triple_id"].is_string());
+    }
+
+    #[tokio::test]
+    async fn test_mempalace_kg_query() {
+        let (config, _td) = setup_test();
+        let server = McpServer::new_test(config);
+        // Add then query
+        server
+            .mempalace_kg_add(&json!({
+                "subject": "Rust", "predicate": "is_a", "object": "language"
+            }))
+            .await
+            .unwrap();
+
+        let res = server
+            .mempalace_kg_query(&json!({ "entity": "Rust" }))
+            .await
+            .unwrap();
+        let results = res["results"].as_array().unwrap();
+        assert!(!results.is_empty());
+        assert_eq!(results[0]["subject"], "Rust");
+    }
+
+    #[tokio::test]
+    async fn test_mempalace_kg_query_direction_filter() {
+        let (config, _td) = setup_test();
+        let server = McpServer::new_test(config);
+        server
+            .mempalace_kg_add(&json!({
+                "subject": "A", "predicate": "knows", "object": "B"
+            }))
+            .await
+            .unwrap();
+
+        let outgoing = server
+            .mempalace_kg_query(&json!({ "entity": "A", "direction": "outgoing" }))
+            .await
+            .unwrap();
+        assert!(!outgoing["results"].as_array().unwrap().is_empty());
+
+        let incoming = server
+            .mempalace_kg_query(&json!({ "entity": "A", "direction": "incoming" }))
+            .await
+            .unwrap();
+        // A has no incoming edges
+        assert!(incoming["results"].as_array().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_mempalace_kg_invalidate() {
+        let (config, _td) = setup_test();
+        let server = McpServer::new_test(config);
+        server
+            .mempalace_kg_add(&json!({
+                "subject": "X", "predicate": "is", "object": "Y"
+            }))
+            .await
+            .unwrap();
+
+        let res = server
+            .mempalace_kg_invalidate(&json!({
+                "subject": "X", "predicate": "is", "object": "Y"
+            }))
+            .await
+            .unwrap();
+        assert_eq!(res["status"], "success");
+    }
+
+    #[tokio::test]
+    async fn test_mempalace_kg_invalidate_missing_fields() {
+        let (config, _td) = setup_test();
+        let server = McpServer::new_test(config);
+        assert!(server.mempalace_kg_invalidate(&json!({"subject": "X"})).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_mempalace_kg_timeline() {
+        let (config, _td) = setup_test();
+        let server = McpServer::new_test(config);
+        server
+            .mempalace_kg_add(&json!({
+                "subject": "T", "predicate": "created_at", "object": "2024"
+            }))
+            .await
+            .unwrap();
+
+        let res = server
+            .mempalace_kg_timeline(&json!({ "entity": "T" }))
+            .await
+            .unwrap();
+        assert_eq!(res["entity"], "T");
+        assert!(res["timeline"].is_array());
+    }
+
+    #[tokio::test]
+    async fn test_mempalace_kg_stats() {
+        let (config, _td) = setup_test();
+        let server = McpServer::new_test(config);
+        let res = server.mempalace_kg_stats().await.unwrap();
+        assert!(res["entities"].is_number());
+        assert!(res["triples"].is_number());
+    }
+
+    #[tokio::test]
+    async fn test_mempalace_kg_full_lifecycle() {
+        let (config, _td) = setup_test();
+        let server = McpServer::new_test(config);
+
+        // 1. Stats should be empty
+        let stats = server.mempalace_kg_stats().await.unwrap();
+        assert_eq!(stats["triples"], 0);
+
+        // 2. Add triple
+        let add = server
+            .mempalace_kg_add(&json!({
+                "subject": "mempalace", "predicate": "written_in", "object": "Rust"
+            }))
+            .await
+            .unwrap();
+        assert_eq!(add["status"], "success");
+
+        // 3. Query it back
+        let query = server
+            .mempalace_kg_query(&json!({ "entity": "mempalace" }))
+            .await
+            .unwrap();
+        let results = query["results"].as_array().unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0]["object"], "Rust");
+
+        // 4. Stats should reflect the addition
+        let stats2 = server.mempalace_kg_stats().await.unwrap();
+        assert_eq!(stats2["triples"], 1);
+
+        // 5. Invalidate
+        server
+            .mempalace_kg_invalidate(&json!({
+                "subject": "mempalace", "predicate": "written_in", "object": "Rust"
+            }))
+            .await
+            .unwrap();
+
+        // 6. Timeline should still show the entry (invalidated, not deleted)
+        let timeline = server
+            .mempalace_kg_timeline(&json!({ "entity": "mempalace" }))
+            .await
+            .unwrap();
+        assert!(timeline["timeline"].is_array());
+    }
+
+    // ── Diary tests ──────────────────────────────────────────────────
+
+    #[tokio::test]
+    async fn test_mempalace_diary_write_and_read() {
         let (config, _td) = setup_test();
         let server = McpServer::new_test(config);
 
@@ -765,5 +1412,112 @@ mod tests {
         let entries = res["entries"].as_array().unwrap();
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0]["content"], "test diary entry");
+    }
+
+    #[tokio::test]
+    async fn test_mempalace_diary_multiple_entries() {
+        let (config, _td) = setup_test();
+        let server = McpServer::new_test(config);
+
+        for i in 0..5 {
+            server
+                .mempalace_diary_write(&json!({
+                    "agent": "multi-agent",
+                    "content": format!("entry {}", i)
+                }))
+                .await
+                .unwrap();
+        }
+
+        let res = server
+            .mempalace_diary_read(&json!({ "agent": "multi-agent", "last_n": 3 }))
+            .await
+            .unwrap();
+        let entries = res["entries"].as_array().unwrap();
+        assert_eq!(entries.len(), 3);
+    }
+
+    #[tokio::test]
+    async fn test_mempalace_diary_read_empty() {
+        let (config, _td) = setup_test();
+        let server = McpServer::new_test(config);
+        let res = server
+            .mempalace_diary_read(&json!({ "agent": "ghost-agent" }))
+            .await
+            .unwrap();
+        assert_eq!(res["entries"].as_array().unwrap().len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_mempalace_diary_default_last_n() {
+        let (config, _td) = setup_test();
+        let server = McpServer::new_test(config);
+        // Should default to 5 when last_n not provided
+        let res = server
+            .mempalace_diary_read(&json!({ "agent": "default-agent" }))
+            .await
+            .unwrap();
+        assert!(res["entries"].is_array());
+    }
+
+    // ── Prune test ───────────────────────────────────────────────────
+
+    #[tokio::test]
+    async fn test_mempalace_prune_dry_run() {
+        let (config, _td) = setup_test();
+        let server = McpServer::new_test(config);
+        let args = json!({ "threshold": 0.9, "dry_run": true });
+        let res = server.mempalace_prune(&args).await.unwrap();
+        assert_eq!(res["status"], "success");
+        assert_eq!(res["dry_run"], true);
+    }
+
+    #[tokio::test]
+    async fn test_mempalace_prune_defaults() {
+        let (config, _td) = setup_test();
+        let server = McpServer::new_test(config);
+        let res = server.mempalace_prune(&json!({})).await.unwrap();
+        assert_eq!(res["dry_run"], true); // default is dry_run=true
+    }
+
+    // ── Content wrapper via tools/call for each tool ─────────────────
+
+    #[tokio::test]
+    async fn test_content_wrapper_all_parameterless_tools() {
+        let (config, _td) = setup_test();
+        let mut server = McpServer::new_test(config);
+
+        let parameterless_tools = [
+            "mempalace_status",
+            "mempalace_list_wings",
+            "mempalace_get_taxonomy",
+            "mempalace_find_tunnels",
+            "mempalace_graph_stats",
+            "mempalace_get_aaak_spec",
+            "mempalace_kg_stats",
+        ];
+
+        for tool_name in &parameterless_tools {
+            let req = make_request(
+                "tools/call",
+                Some(json!({ "name": tool_name, "arguments": {} })),
+                Some(json!(tool_name.to_string())),
+            );
+            let resp = server.handle_request(req).await;
+            assert!(
+                resp.error.is_none(),
+                "tool {} returned error: {:?}",
+                tool_name,
+                resp.error
+            );
+            let res = resp.result.unwrap();
+            let content = res["content"]
+                .as_array()
+                .unwrap_or_else(|| panic!("tool {} missing content array", tool_name));
+            assert_eq!(content[0]["type"], "text", "tool {} content type wrong", tool_name);
+            let text = content[0]["text"].as_str().unwrap();
+            let _parsed: Value =
+                serde_json::from_str(text).unwrap_or_else(|_| panic!("tool {} text not valid JSON", tool_name));
+        }
     }
 }

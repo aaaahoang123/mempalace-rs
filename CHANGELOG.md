@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] - 2026-04-10
+
+### Fixed
+
+- **MCP Content Wrapper**: Wrapped `tools/call` responses in MCP-compliant `{"content": [{"type": "text", ...}]}` format, fixing "content is missing" errors in Windsurf and other MCP clients.
+- **Capability Advertisement**: Removed false `resources` and `prompts` capability claims from `initialize` response; server now only advertises `tools`.
+
+### Added
+
+- **MCP Protocol Handlers**: Added explicit `resources/list`, `resources/read`, and `prompts/list` handlers as defensive fallbacks.
+- **Comprehensive MCP Test Suite**: 59 tests covering all 20 tools, JSON-RPC protocol handling, content wrapper validation, schema completeness, error/edge cases, and full lifecycle tests for KG, diary, and drawer operations.
+
 ## [0.4.0] - 2026-04-09
 
 ### Added
