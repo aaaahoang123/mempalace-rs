@@ -727,7 +727,11 @@ mod tests {
         assert!(resp.error.is_none());
         let res = resp.result.unwrap();
         let tools = res["tools"].as_array().unwrap();
-        assert!(tools.len() >= 20, "Expected at least 20 tools, got {}", tools.len());
+        assert!(
+            tools.len() >= 20,
+            "Expected at least 20 tools, got {}",
+            tools.len()
+        );
     }
 
     #[tokio::test]
@@ -748,8 +752,8 @@ mod tests {
         assert!(!content.is_empty());
         assert_eq!(content[0]["type"], "text");
         // text field must be valid JSON
-        let inner: Value =
-            serde_json::from_str(content[0]["text"].as_str().unwrap()).expect("text not valid JSON");
+        let inner: Value = serde_json::from_str(content[0]["text"].as_str().unwrap())
+            .expect("text not valid JSON");
         assert!(inner["total_memories"].is_number());
         assert!(inner["protocol"].is_string());
     }
@@ -935,11 +939,20 @@ mod tests {
         let server = McpServer::new_test(config);
 
         // missing subject
-        assert!(server.mempalace_kg_add(&json!({"predicate": "is", "object": "x"})).await.is_err());
+        assert!(server
+            .mempalace_kg_add(&json!({"predicate": "is", "object": "x"}))
+            .await
+            .is_err());
         // missing predicate
-        assert!(server.mempalace_kg_add(&json!({"subject": "x", "object": "y"})).await.is_err());
+        assert!(server
+            .mempalace_kg_add(&json!({"subject": "x", "object": "y"}))
+            .await
+            .is_err());
         // missing object
-        assert!(server.mempalace_kg_add(&json!({"subject": "x", "predicate": "is"})).await.is_err());
+        assert!(server
+            .mempalace_kg_add(&json!({"subject": "x", "predicate": "is"}))
+            .await
+            .is_err());
     }
 
     #[tokio::test]
@@ -947,7 +960,9 @@ mod tests {
         let (config, _td) = setup_test();
         let server = McpServer::new_test(config);
         // string instead of integer
-        let res = server.mempalace_delete_drawer(&json!({"memory_id": "bad"})).await;
+        let res = server
+            .mempalace_delete_drawer(&json!({"memory_id": "bad"}))
+            .await;
         assert!(res.is_err());
     }
 
@@ -995,7 +1010,9 @@ mod tests {
     async fn test_diary_write_missing_agent() {
         let (config, _td) = setup_test();
         let server = McpServer::new_test(config);
-        let res = server.mempalace_diary_write(&json!({"content": "hello"})).await;
+        let res = server
+            .mempalace_diary_write(&json!({"content": "hello"}))
+            .await;
         assert!(res.is_err());
     }
 
@@ -1003,7 +1020,9 @@ mod tests {
     async fn test_diary_write_missing_content() {
         let (config, _td) = setup_test();
         let server = McpServer::new_test(config);
-        let res = server.mempalace_diary_write(&json!({"agent": "test"})).await;
+        let res = server
+            .mempalace_diary_write(&json!({"agent": "test"}))
+            .await;
         assert!(res.is_err());
     }
 
@@ -1319,7 +1338,10 @@ mod tests {
     async fn test_mempalace_kg_invalidate_missing_fields() {
         let (config, _td) = setup_test();
         let server = McpServer::new_test(config);
-        assert!(server.mempalace_kg_invalidate(&json!({"subject": "X"})).await.is_err());
+        assert!(server
+            .mempalace_kg_invalidate(&json!({"subject": "X"}))
+            .await
+            .is_err());
     }
 
     #[tokio::test]
@@ -1514,10 +1536,14 @@ mod tests {
             let content = res["content"]
                 .as_array()
                 .unwrap_or_else(|| panic!("tool {} missing content array", tool_name));
-            assert_eq!(content[0]["type"], "text", "tool {} content type wrong", tool_name);
+            assert_eq!(
+                content[0]["type"], "text",
+                "tool {} content type wrong",
+                tool_name
+            );
             let text = content[0]["text"].as_str().unwrap();
-            let _parsed: Value =
-                serde_json::from_str(text).unwrap_or_else(|_| panic!("tool {} text not valid JSON", tool_name));
+            let _parsed: Value = serde_json::from_str(text)
+                .unwrap_or_else(|_| panic!("tool {} text not valid JSON", tool_name));
         }
     }
 }
