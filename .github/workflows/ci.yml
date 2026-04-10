@@ -133,6 +133,20 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo dependencies
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y libssl-dev ca-certificates
+
       - name: Download Artifacts
         uses: actions/download-artifact@v5
         with:
@@ -142,12 +156,15 @@ jobs:
       - run: |
           chmod +x target/release/mempalace-rs target/release/update-benchmarks
 
-      - name: Run benchmarks
+      - name: Run Gold Standard benchmarks
         run: |
           ./target/release/mempalace-rs benchmark ruler --k 10
           ./target/release/mempalace-rs benchmark structmem --hints
           ./target/release/mempalace-rs benchmark babilong --tokens 1000000
           ./target/release/mempalace-rs benchmark beam
+
+      - name: Run Criterion micro-benchmarks
+        run: cargo bench
 
       - name: Update documentation
         run: ./target/release/update-benchmarks
