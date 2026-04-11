@@ -103,7 +103,10 @@ fn apply_map_failed_patch(header_path: &PathBuf) {
 
     // Insert after the first #include or at the top
     let patched_content = if let Some(pos) = content.find("#pragma once") {
-        let insert_pos = content[pos..].find('\n').map(|p| pos + p + 1).unwrap_or(pos + 12);
+        let insert_pos = content[pos..]
+            .find('\n')
+            .map(|p| pos + p + 1)
+            .unwrap_or(pos + 12);
         let mut new_content = content.clone();
         new_content.insert_str(insert_pos, patch);
         new_content
@@ -114,6 +117,9 @@ fn apply_map_failed_patch(header_path: &PathBuf) {
     if let Err(e) = fs::write(header_path, patched_content) {
         eprintln!("Warning: Failed to patch usearch header: {}", e);
     } else {
-        println!("cargo:warning=Patched usearch header for Windows: {:?}", header_path);
+        println!(
+            "cargo:warning=Patched usearch header for Windows: {:?}",
+            header_path
+        );
     }
 }
