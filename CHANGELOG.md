@@ -5,10 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.4.1] - 2026-04-10
+## [0.4.1] - 2026-04-11
 
 ### Fixed
 
+- **Windows Build Failure (Issue #3)**: Fixed `cargo install` failure on Windows caused by usearch v2.24.0 using `MAP_FAILED` (a POSIX-only identifier). Added `build.rs` script that automatically patches the usearch header on Windows builds.
+- **Cross-Platform CI Coverage**: Added dedicated compile jobs for Windows, macOS, and Linux to catch platform-specific build issues before releases.
 - **MCP Content Wrapper**: Wrapped `tools/call` responses in MCP-compliant `{"content": [{"type": "text", ...}]}` format, fixing "content is missing" errors in Windsurf and other MCP clients.
 - **Capability Advertisement**: Removed false `resources` and `prompts` capability claims from `initialize` response; server now only advertises `tools`.
 
