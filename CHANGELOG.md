@@ -5,12 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.4.2] - 2026-04-11
+## [0.4.2] - 2026-04-12
 
 ### Fixed
 
-- **Windows Build Failure (Issue #3)**: Fixed `cargo install` failure on Windows caused by usearch v2.24.0 using `MAP_FAILED` (a POSIX-only identifier). Added `build.rs` script that automatically patches the usearch header on Windows builds.
-- **Cross-Platform CI Coverage**: Added dedicated compile jobs for Windows, macOS, and Linux to catch platform-specific build issues before releases.
+- **Windows Build Failure (Issue #3)**: Fixed `cargo install` failure on Windows caused by usearch v2.24.0 using `MAP_FAILED` (a POSIX-only identifier). Patched `index_plugins.hpp` and `index.hpp` with a `#ifndef MAP_FAILED` guard and applied via Cargo `[patch.crates-io]`.
+- **CI C++ Linking (all platforms)**: `patches/usearch/build.rs` was silently excluded by usearch's own `.gitignore` (`/build*` rule), so CI never compiled the C++ bridge — causing `undefined symbol: cxxbridge1$NativeIndex$...` on Linux, macOS, and Windows. Fixed by force-adding `build.rs` past the gitignore.
+- **SimSIMD Disabled**: Removed the `simsimd` feature flag from the usearch dependency to avoid cascading SIMD compilation failures in CI environments.
+
+### Added
+
+- **Cross-Platform CI**: Dedicated `compile-windows`, `compile-macos`, and `compile-linux` jobs to catch platform-specific build issues before releases.
 
 ## [0.4.1] - 2026-04-10
 
