@@ -2205,7 +2205,7 @@ checksum = "f8ca58f447f06ed17d5fc4043ce1b10dd205e060fb3ce5b979b8ed8e59ff3f79"
 
 [[package]]
 name = "mempalace-rs"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4140,8 +4140,6 @@ dependencies = [
 [[package]]
 name = "usearch"
 version = "2.24.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "09657b7d3d88992d7475be6f345d3cb3b388d13c152dbd4742e0b955e3a2b632"
 dependencies = [
  "cxx",
  "cxx-build",

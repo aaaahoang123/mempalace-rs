@@ -64,3 +64,8 @@ harness = false
 [[bin]]
 name = "download-model"
 path = "src/bin/download_model.rs"
+
+# Patch usearch with Windows MAP_FAILED fix
+# See: https://github.com/unum-cloud/usearch/issues/746
+[patch.crates-io]
+usearch = { path = "patches/usearch" }
