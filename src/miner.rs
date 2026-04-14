@@ -139,13 +139,25 @@ pub fn get_mineable_files(project_path: &Path, no_gitignore: bool) -> Vec<std::p
     use ignore::WalkBuilder;
     let mut files = Vec::new();
 
+    let canonical_root = match project_path.canonicalize() {
+        Ok(p) => p,
+        Err(_) => return files,
+    };
+
     let mut builder = WalkBuilder::new(project_path);
+    builder.follow_links(false);
     if no_gitignore {
         builder.ignore(false).git_ignore(false).git_exclude(false);
     }
 
     for entry in builder.build().flatten() {
         let path = entry.path();
+        // Boundary check: ensure resolved path stays under the root
+        if let Ok(canonical) = path.canonicalize() {
+            if !canonical.starts_with(&canonical_root) {
+                continue;
+            }
+        }
         let name = path.file_name().unwrap_or_default().to_string_lossy();
         if SKIP_DIRS.contains(&name.as_ref()) {
             continue;
@@ -154,7 +166,7 @@ pub fn get_mineable_files(project_path: &Path, no_gitignore: bool) -> Vec<std::p
             let extension = path.extension().and_then(|s| s.to_str()).unwrap_or("");
             let ext_with_dot = format!(".{}", extension);
             if READABLE_EXTENSIONS.contains(&ext_with_dot.as_str()) {
-                let filename = path.file_name().unwrap().to_string_lossy();
+                let filename = path.file_name().unwrap_or_default().to_string_lossy();
                 if filename != "mempalace.yaml"
                     && filename != "mempalace.json"
                     && filename != "package-lock.json"
@@ -167,7 +179,7 @@ pub fn get_mineable_files(project_path: &Path, no_gitignore: bool) -> Vec<std::p
     files
 }
 
-use md5;
+use sha2::{Digest, Sha256};
 
 pub fn prepare_documents(
     chunks: Vec<String>,
@@ -373,8 +385,9 @@ pub async fn mine_project(
 }
 
 fn hash_string(s: &str) -> String {
-    let digest = md5::compute(s);
-    format!("{:x}", digest)
+    let mut hasher = Sha256::new();
+    hasher.update(s.as_bytes());
+    hex::encode(hasher.finalize())
 }
 
 #[cfg(test)]

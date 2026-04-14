@@ -201,7 +201,12 @@ pub fn detect_convo_room(content: &str) -> String {
 
 pub fn get_mineable_convo_files(convo_path: &Path) -> Vec<std::path::PathBuf> {
     let mut files = Vec::new();
+    let canonical_root = match convo_path.canonicalize() {
+        Ok(p) => p,
+        Err(_) => return files,
+    };
     for entry in WalkDir::new(convo_path)
+        .follow_links(false)
         .into_iter()
         .filter_entry(|e| {
             let name = e.file_name().to_string_lossy();
@@ -210,6 +215,12 @@ pub fn get_mineable_convo_files(convo_path: &Path) -> Vec<std::path::PathBuf> {
         .flatten()
     {
         let path = entry.path();
+        // Boundary check: ensure resolved path stays under the root
+        if let Ok(canonical) = path.canonicalize() {
+            if !canonical.starts_with(&canonical_root) {
+                continue;
+            }
+        }
         if path.is_file() {
             let extension = path.extension().and_then(|s| s.to_str()).unwrap_or("");
             let ext_with_dot = format!(".{}", extension);
@@ -221,7 +232,7 @@ pub fn get_mineable_convo_files(convo_path: &Path) -> Vec<std::path::PathBuf> {
     files
 }
 
-use md5;
+use sha2::{Digest, Sha256};
 
 pub fn prepare_convo_documents(
     chunks: Vec<String>,
@@ -359,8 +370,9 @@ pub async fn mine_convos(
 }
 
 fn hash_string(s: &str) -> String {
-    let digest = md5::compute(s);
-    format!("{:x}", digest)
+    let mut hasher = Sha256::new();
+    hasher.update(s.as_bytes());
+    hex::encode(hasher.finalize())
 }
 
 #[cfg(test)]
