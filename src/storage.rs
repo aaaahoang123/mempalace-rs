@@ -944,10 +944,9 @@ mod tests {
     fn test_layer0_new_and_render() {
         // Test new with no path provided
         let l0_default = Layer0::new(None);
-        assert!(l0_default
-            .path
-            .to_string_lossy()
-            .contains(".mempalace/identity.txt"));
+        let path_str = l0_default.path.to_string_lossy();
+        assert!(path_str.contains("identity.txt"));
+        assert!(path_str.contains(".mempalace"));
 
         // Test with a specific path that doesn't exist
         let temp_dir = std::env::temp_dir();
@@ -1098,7 +1097,8 @@ mod tests {
 
     #[test]
     fn test_storage_add_wing_duplicate() {
-        let storage = Storage::new("test_duplicate.db").unwrap();
+        let db_name = format!("test_duplicate_{}.db", rand::random::<u32>());
+        let storage = Storage::new(&db_name).unwrap();
         let wing = crate::models::Wing {
             name: "test".to_string(),
             r#type: "test".to_string(),
@@ -1107,7 +1107,7 @@ mod tests {
         storage.add_wing(&wing).unwrap();
         let result = storage.add_wing(&wing);
         assert!(result.is_err());
-        let _ = std::fs::remove_file("test_duplicate.db");
+        let _ = std::fs::remove_file(db_name);
     }
 
     #[test]
