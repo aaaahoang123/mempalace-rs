@@ -150,6 +150,20 @@ impl Default for MempalaceConfig {
     }
 }
 
+/// Expand a leading `~` or `~/` in a path string using the `HOME` env var.
+/// Paths that do not start with `~` are returned unchanged.
+fn expand_tilde(path: &str) -> String {
+    if path == "~" {
+        return std::env::var("HOME").unwrap_or_else(|_| path.to_string());
+    }
+    if let Some(rest) = path.strip_prefix("~/") {
+        if let Ok(home) = std::env::var("HOME") {
+            return format!("{home}/{rest}");
+        }
+    }
+    path.to_string()
+}
+
 impl MempalaceConfig {
     pub fn new(config_dir: Option<PathBuf>) -> Self {
         let home = std::env::var("HOME").unwrap_or_else(|_| ".".into());
@@ -235,16 +249,20 @@ impl MempalaceConfig {
         if let Ok(val) =
             std::env::var("MEMPALACE_PALACE_PATH").or_else(|_| std::env::var("MEMPAL_PALACE_PATH"))
         {
-            let path = PathBuf::from(&val);
+            let path = PathBuf::from(expand_tilde(&val));
             if let Ok(canonical) = path.canonicalize() {
-                self.palace_path = canonical.to_string_lossy().into_owned();
+                if canonical.is_dir() {
+                    self.palace_path = canonical.to_string_lossy().into_owned();
+                }
             }
         }
         // Phase 4: allow overriding emotions file path via env var
         if let Ok(val) = std::env::var("MEMPALACE_EMOTIONS_PATH") {
-            let path = PathBuf::from(&val);
+            let path = PathBuf::from(expand_tilde(&val));
             if let Ok(canonical) = path.canonicalize() {
-                self.emotions_path = Some(canonical);
+                if canonical.is_file() {
+                    self.emotions_path = Some(canonical);
+                }
             }
         }
     }

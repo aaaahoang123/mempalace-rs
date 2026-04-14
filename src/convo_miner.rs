@@ -552,6 +552,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)]
     fn test_get_mineable_convo_files_excludes_symlinks_outside_root() {
         let root = tempfile::tempdir().unwrap();
         let outside = tempfile::tempdir().unwrap();

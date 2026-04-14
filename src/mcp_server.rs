@@ -140,23 +140,16 @@ impl McpServer {
                 error: None,
                 id: req.id,
             },
-            Err(e) => {
-                let message = format!("{}", e);
-                let sanitized = match std::env::var("HOME") {
-                    Ok(home) if !home.is_empty() => message.replace(home.as_str(), "~"),
-                    _ => message,
-                };
-                JsonRpcResponse {
-                    jsonrpc: "2.0".to_string(),
-                    result: None,
-                    error: Some(JsonRpcError {
-                        code: -32603,
-                        message: sanitized,
-                        data: None,
-                    }),
-                    id: req.id,
-                }
-            }
+            Err(_) => JsonRpcResponse {
+                jsonrpc: "2.0".to_string(),
+                result: None,
+                error: Some(JsonRpcError {
+                    code: -32603,
+                    message: "Internal server error".to_string(),
+                    data: None,
+                }),
+                id: req.id,
+            },
         }
     }
 
@@ -1224,6 +1217,19 @@ mod tests {
         let server = McpServer::new_test(config);
         let res = server.mempalace_find_tunnels().await.unwrap();
         assert!(res["tunnels"].is_array());
+    }
+
+    #[tokio::test]
+    async fn test_mempalace_add_drawer_content_too_large() {
+        let (config, _td) = setup_test();
+        let mut server = McpServer::new_test(config);
+        // 1MB + 1 byte exceeds the enforced limit
+        let big = "x".repeat(1_000_001);
+        let args = serde_json::json!({ "content": big, "wing": "test", "room": "test" });
+        let err = server.mempalace_add_drawer(&args).await;
+        assert!(err.is_err(), "content over 1MB must be rejected");
+        let msg = format!("{}", err.unwrap_err());
+        assert!(msg.contains("1MB"), "error should mention the size limit");
     }
 
     #[tokio::test]
