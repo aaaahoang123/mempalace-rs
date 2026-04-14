@@ -235,11 +235,17 @@ impl MempalaceConfig {
         if let Ok(val) =
             std::env::var("MEMPALACE_PALACE_PATH").or_else(|_| std::env::var("MEMPAL_PALACE_PATH"))
         {
-            self.palace_path = val;
+            let path = PathBuf::from(&val);
+            if let Ok(canonical) = path.canonicalize() {
+                self.palace_path = canonical.to_string_lossy().into_owned();
+            }
         }
         // Phase 4: allow overriding emotions file path via env var
         if let Ok(val) = std::env::var("MEMPALACE_EMOTIONS_PATH") {
-            self.emotions_path = Some(PathBuf::from(val));
+            let path = PathBuf::from(&val);
+            if let Ok(canonical) = path.canonicalize() {
+                self.emotions_path = Some(canonical);
+            }
         }
     }
 
