@@ -225,8 +225,8 @@ pub fn prepare_documents(
                 "filed_at": chrono::Utc::now().to_rfc3339(),
             })
             .as_object()
-            .unwrap()
-            .clone(),
+            .map(|o| o.clone())
+            .unwrap_or_default(),
         );
     }
     (ids, documents, metadatas)
@@ -365,7 +365,9 @@ pub async fn mine_project(
                     }
                     count += 1;
                 }
-                let filename = path.file_name().unwrap().to_string_lossy();
+                let filename = path.file_name()
+                    .map(|n| n.to_string_lossy().to_string())
+                    .unwrap_or_else(|| "unknown".to_string());
                 println!(
                     "  ✓ {} {} drawers from {}",
                     if options.dry_run {
