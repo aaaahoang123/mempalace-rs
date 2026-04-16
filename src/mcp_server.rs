@@ -51,12 +51,15 @@ impl McpServer {
         // Ensure config directory exists
         let _ = std::fs::create_dir_all(&config.config_dir);
 
-        // Initialize the Searcher (which eagerly loads the 87MB ONNX embedder model)
-        // on a dedicated blocking thread so we don't starve the Tokio event loop.
-        let config_for_searcher = config.clone();
-        let searcher = tokio::task::spawn_blocking(move || Searcher::new(config_for_searcher))
-            .await
-            .map_err(|e| anyhow::anyhow!("Searcher init panicked: {e}"))?;
+        // Pre-warm the global ONNX embedder model on a dedicated blocking thread
+        // so we don't starve the Tokio event loop with the heavy 160ms initialization.
+        let _ = tokio::task::spawn_blocking(|| {
+            crate::embedder_factory::EmbedderFactory::get_embedder()
+        })
+        .await
+        .map_err(|e| anyhow::anyhow!("EmbedderFactory init panicked: {e}"))?;
+
+        let searcher = Searcher::new(config.clone());
 
         let kg = KnowledgeGraph::new(
             config

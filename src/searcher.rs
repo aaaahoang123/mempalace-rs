@@ -2,74 +2,33 @@ use crate::config::MempalaceConfig;
 use crate::storage::MemoryStack;
 use crate::vector_storage::VectorStorage;
 use anyhow::Result;
-use fastembed::{EmbeddingModel, InitOptions, TextEmbedding};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::Arc;
 
 // Note: Custom VectorStorage (fastembed + usearch + rusqlite) is used.
 
 /// High-level search interface for retrieving context from the Palace.
 ///
-/// The `Arc<TextEmbedding>` embedder is initialized **once** at construction
-/// and shared across all `open_vector_storage` calls, eliminating the
-/// 120–180 ms ONNX model re-load that previously occurred on every tool call.
+/// The `Arc<TextEmbedding>` embedder is initialized globally inside
+/// `EmbedderFactory` to eliminate ONNX model re-loads.
 pub struct Searcher {
     pub config: MempalaceConfig,
-    embedder: Option<Arc<TextEmbedding>>,
 }
 
 impl Searcher {
-    /// Construct a `Searcher`, eagerly loading the fastembed ONNX model.
-    /// If the model fails to init (e.g. missing files), operations that
-    /// require embedding will return an error gracefully.
+    /// Construct a `Searcher`. The embedder is now globally cached.
     pub fn new(config: MempalaceConfig) -> Self {
-        let embedder = Self::init_embedder(&config);
-        Searcher { config, embedder }
+        Searcher { config }
     }
 
-    /// Initialize the fastembed ONNX embedder, respecting MEMPALACE_MODELS_DIR
-    /// env var and the binary-adjacent `models/` directory as fallback.
-    fn init_embedder(_config: &MempalaceConfig) -> Option<Arc<TextEmbedding>> {
-        let cache_dir = std::env::var("MEMPALACE_MODELS_DIR")
-            .ok()
-            .map(PathBuf::from)
-            .filter(|p| p.exists())
-            .or_else(|| {
-                std::env::current_exe()
-                    .ok()
-                    .and_then(|exe| exe.parent().map(|p| p.join("models")))
-                    .filter(|p| p.exists())
-            });
-
-        let mut init_opts =
-            InitOptions::new(EmbeddingModel::AllMiniLML6V2).with_show_download_progress(false);
-        if let Some(cache) = cache_dir {
-            init_opts = init_opts.with_cache_dir(cache);
-        }
-
-        match TextEmbedding::try_new(init_opts) {
-            Ok(emb) => {
-                Some(Arc::new(emb))
-            }
-            Err(e) => {
-                eprintln!("[WARN] mempalace: failed to initialise fastembed embedder: {e}");
-                None
-            }
-        }
-    }
-
-    /// Open a `VectorStorage` reusing the cached embedder — no ONNX reload.
+    /// Open a `VectorStorage`, picking up the global cached embedder.
     fn open_vector_storage(&self) -> Option<VectorStorage> {
-        let embedder = self.embedder.clone()?;
-        VectorStorage::new_with_embedder(
+        VectorStorage::new(
             self.config.config_dir.join("vectors.db"),
             self.config.config_dir.join("vectors.usearch"),
-            embedder,
         )
         .ok()
     }
-
 
     pub fn add_memory(
         &self,
