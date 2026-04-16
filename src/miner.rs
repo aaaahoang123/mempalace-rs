@@ -224,8 +224,7 @@ pub fn prepare_documents(
                 "chunk_index": i,
                 "filed_at": chrono::Utc::now().to_rfc3339(),
             })
-            .as_object()
-            .map(|o| o.clone())
+            .as_object().cloned()
             .unwrap_or_default(),
         );
     }
