@@ -83,6 +83,7 @@ fn test_config_null_json() {
 }
 
 #[test]
+#[cfg(unix)]
 fn test_config_unreadable_file() {
     let dir = tempdir().unwrap();
     let config_dir = dir.path().to_path_buf();
@@ -143,3 +144,4 @@ fn test_config_init_and_save() {
     let content2 = fs::read_to_string(&people_file).unwrap();
     assert!(!content2.contains("Bob"));
 }
+

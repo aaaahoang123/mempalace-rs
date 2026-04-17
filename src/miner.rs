@@ -42,28 +42,42 @@ pub fn chunk_text(content: &str) -> Vec<String> {
     let mut start = 0;
 
     while start < content.len() {
+        // Ensure start is at a char boundary
+        while start < content.len() && !content.is_char_boundary(start) {
+            start += 1;
+        }
+        
+        if start >= content.len() {
+            break;
+        }
+
         let mut end = std::cmp::min(start + CHUNK_SIZE, content.len());
+        
+        // Find nearest char boundary for end BEFORE any slicing
+        while end > start && !content.is_char_boundary(end) {
+            end -= 1;
+        }
 
         if end < content.len() {
             // Try to break at paragraph boundary
-            if let Some(newline_pos) = content[start..end].rfind("\n\n") {
+            // Now safe to slice because we verified end is a char boundary
+            let slice = &content[start..end];
+            if let Some(newline_pos) = slice.rfind("\n\n") {
                 if newline_pos > CHUNK_SIZE / 2 {
                     end = start + newline_pos;
                 }
-            } else if let Some(newline_pos) = content[start..end].rfind('\n') {
+            } else if let Some(newline_pos) = slice.rfind('\n') {
                 if newline_pos > CHUNK_SIZE / 2 {
                     end = start + newline_pos;
                 }
             }
         }
+        
+        // Re-ensure end is at a char boundary after searching for newlines
+        while end > start && !content.is_char_boundary(end) {
+            end -= 1;
+        }
 
-        // Ensure start and end are valid UTF-8 character boundaries
-        while start > 0 && !content.is_char_boundary(start) {
-            start -= 1;
-        }
-        while end < content.len() && !content.is_char_boundary(end) {
-            end += 1;
-        }
         let chunk = content[start..end].trim();
         if chunk.len() >= MIN_CHUNK_SIZE {
             chunks.push(chunk.to_string());
@@ -72,7 +86,23 @@ pub fn chunk_text(content: &str) -> Vec<String> {
         if end >= content.len() {
             break;
         }
-        start = end - CHUNK_OVERLAP;
+        
+        // Compute overlap and ensure start is at a char boundary
+        let next_start = if end > CHUNK_OVERLAP {
+            let mut s = end - CHUNK_OVERLAP;
+            while s < end && !content.is_char_boundary(s) {
+                s += 1;
+            }
+            if s >= end { end } else { s }
+        } else {
+            0
+        };
+
+        if next_start <= start {
+            start = end;
+        } else {
+            start = next_start;
+        }
     }
 
     chunks
